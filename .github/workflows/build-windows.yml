@@ -94,5 +94,5 @@ jobs:
           if ($LASTEXITCODE -eq 0) {
             gh release upload "$env:TAG" $files --clobber
           } else {
-            gh release create "$env:TAG" $files --target "$env:GITHUB_SHA" --title "Universal CAD Suite v$env:VERSION" --notes "Universal CAD Suite v$env:VERSION with Universal CAD Engine v$env:ENGINE_VERSION. Includes Studio, Customer License Tool, and owner-only Master License Manager. 100% offline multi-seat licensing. Master signing secrets and generated Owner Universal licenses are intentionally excluded from the repository and release."
+            gh release create "$env:TAG" $files --target "$env:GITHUB_SHA" --title "Universal CAD Suite v$env:VERSION" --notes "Universal CAD Suite v$env:VERSION · Engine v$env:ENGINE_VERSION"
           }
