@@ -12,33 +12,33 @@ jobs:
   build:
     name: Test and package Windows installers
     runs-on: windows-latest
-    timeout-minutes: 35
+    timeout-minutes: 40
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Expand public-safe source archive
+      - name: Select and expand latest desktop source
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path src | Out-Null
-          Expand-Archive -Path "Universal-CAD-Desktop-v0.26.0-public-source.zip" -DestinationPath src -Force
-          if (-not (Test-Path "src/package.json")) { throw "Source archive did not expand correctly." }
-
-      - name: Fix electron-builder application root
-        shell: pwsh
-        run: |
-          $configs = @(
-            "src/electron-builder.customer.yml",
-            "src/electron-builder.manager.yml"
-          )
-          foreach ($config in $configs) {
-            $text = Get-Content $config -Raw
-            if ($text -notmatch '(?m)^  app: \.$') {
-              $text = $text -replace '(?m)^directories:\r?\n', "directories:`r`n  app: .`r`n"
-              Set-Content -Path $config -Value $text -NoNewline
+          $items = Get-ChildItem "Universal-CAD-Desktop-v*-public-source.zip" -File | ForEach-Object {
+            if ($_.Name -match '^Universal-CAD-Desktop-v(?<v>\d+\.\d+\.\d+)-public-source\.zip$') {
+              [PSCustomObject]@{ File = $_; Version = [version]$Matches.v }
             }
           }
+          $selected = $items | Sort-Object Version -Descending | Select-Object -First 1
+          if (-not $selected) { throw "No Universal-CAD-Desktop-v*-public-source.zip archive was found." }
+          New-Item -ItemType Directory -Force -Path src | Out-Null
+          Expand-Archive -Path $selected.File.FullName -DestinationPath src -Force
+          if (-not (Test-Path "src/package.json")) { throw "Source archive did not expand correctly." }
+          $pkg = Get-Content "src/package.json" -Raw | ConvertFrom-Json
+          $version = [string]$pkg.version
+          if ($version -ne $selected.Version.ToString()) {
+            throw "Archive filename version $($selected.Version) does not match package.json version $version."
+          }
+          "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "TAG=desktop-v$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host "Selected $($selected.File.Name) -> Desktop v$version"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -49,9 +49,9 @@ jobs:
         working-directory: src
         run: npm install
 
-      - name: Run license, public-package, and PWA regression tests
+      - name: Run full validation gate
         working-directory: src
-        run: npm test
+        run: npm run test:full
 
       - name: Build customer and license-manager installers
         working-directory: src
@@ -61,13 +61,12 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path release-bundle | Out-Null
-          $customer = Get-ChildItem "src/release/customer" -Filter *.exe -File -ErrorAction Stop
-          $manager  = Get-ChildItem "src/release/license-manager" -Filter *.exe -File -ErrorAction Stop
-          if ($customer.Count -lt 1) { throw "Customer installer was not produced." }
-          if ($manager.Count -lt 1)  { throw "License Manager installer was not produced." }
-          Copy-Item $customer.FullName release-bundle/
-          Copy-Item $manager.FullName release-bundle/
-          Remove-Item release-bundle/SHA256SUMS.txt -ErrorAction SilentlyContinue
+          $customerPath = "src/release/customer/Universal-CAD-Studio-Setup-$env:VERSION-x64.exe"
+          $managerPath  = "src/release/license-manager/Universal-CAD-License-Manager-Setup-$env:VERSION-x64.exe"
+          if (-not (Test-Path $customerPath)) { throw "Customer installer was not produced: $customerPath" }
+          if (-not (Test-Path $managerPath))  { throw "License Manager installer was not produced: $managerPath" }
+          Copy-Item $customerPath release-bundle/
+          Copy-Item $managerPath release-bundle/
           Get-ChildItem release-bundle/*.exe | Sort-Object Name | ForEach-Object {
             $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
             "$hash  $($_.Name)" | Add-Content release-bundle/SHA256SUMS.txt
@@ -77,22 +76,21 @@ jobs:
       - name: Upload Windows installers artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Universal-CAD-Desktop-v0.26.0-Windows
+          name: Universal-CAD-Desktop-v${{ env.VERSION }}-Windows
           path: release-bundle/*
           if-no-files-found: error
           retention-days: 30
 
-      - name: Publish or refresh v0.26.0 GitHub Release
+      - name: Publish or refresh GitHub Release
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "desktop-v0.26.0"
           $files = Get-ChildItem release-bundle -File | ForEach-Object { $_.FullName }
-          gh release view $tag *> $null
+          gh release view "$env:TAG" *> $null
           if ($LASTEXITCODE -eq 0) {
-            gh release upload $tag $files --clobber
+            gh release upload "$env:TAG" $files --clobber
           } else {
-            gh release create $tag $files --target "$env:GITHUB_SHA" --title "Universal CAD Desktop v0.26.0" --notes "Windows desktop release with machine-bound offline licensing. The signing master key is intentionally not stored in this repository or release."
+            gh release create "$env:TAG" $files --target "$env:GITHUB_SHA" --title "Universal CAD Desktop v$env:VERSION" --notes "Desktop release embedding Universal CAD Studio PWA v0.26.0 with machine-bound offline licensing. Administrator signing secrets are intentionally excluded from the repository and release."
           }
