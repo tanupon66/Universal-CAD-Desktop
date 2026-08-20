@@ -1,4 +1,4 @@
-name: Build Windows EXE
+name: Build Universal CAD Suite Windows
 
 on:
   push:
@@ -10,42 +10,43 @@ permissions:
 
 jobs:
   build:
-    name: Test and package Windows installers
+    name: Validate and package Suite
     runs-on: windows-latest
-    timeout-minutes: 40
+    timeout-minutes: 45
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Select and expand latest desktop source
+      - name: Select and expand latest Suite source
         shell: pwsh
         run: |
-          $items = Get-ChildItem "Universal-CAD-Desktop-v*-public-source.zip" -File | ForEach-Object {
-            if ($_.Name -match '^Universal-CAD-Desktop-v(?<v>\d+\.\d+\.\d+)-public-source\.zip$') {
+          $items = Get-ChildItem "Universal-CAD-Suite-v*-public-source.zip" -File | ForEach-Object {
+            if ($_.Name -match '^Universal-CAD-Suite-v(?<v>\d+\.\d+\.\d+)-public-source\.zip$') {
               [PSCustomObject]@{ File = $_; Version = [version]$Matches.v }
             }
           }
           $selected = $items | Sort-Object Version -Descending | Select-Object -First 1
-          if (-not $selected) { throw "No Universal-CAD-Desktop-v*-public-source.zip archive was found." }
+          if (-not $selected) { throw "No Universal-CAD-Suite-v*-public-source.zip archive was found." }
           New-Item -ItemType Directory -Force -Path src | Out-Null
           Expand-Archive -Path $selected.File.FullName -DestinationPath src -Force
-          if (-not (Test-Path "src/package.json")) { throw "Source archive did not expand correctly." }
-          $pkg = Get-Content "src/package.json" -Raw | ConvertFrom-Json
-          $version = [string]$pkg.version
-          if ($version -ne $selected.Version.ToString()) {
-            throw "Archive filename version $($selected.Version) does not match package.json version $version."
-          }
+          if (-not (Test-Path "src/package.json")) { throw "Suite source archive did not expand correctly." }
+          $suite = Get-Content "src/package.json" -Raw | ConvertFrom-Json
+          $engine = Get-Content "src/app/package.json" -Raw | ConvertFrom-Json
+          $version = [string]$suite.version
+          $engineVersion = [string]$engine.version
+          if ($version -ne $selected.Version.ToString()) { throw "Archive filename version $($selected.Version) does not match Suite package.json version $version." }
           "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-          "TAG=desktop-v$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-          Write-Host "Selected $($selected.File.Name) -> Desktop v$version"
+          "ENGINE_VERSION=$engineVersion" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "TAG=suite-v$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host "Selected $($selected.File.Name) -> Suite v$version / Engine v$engineVersion"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
 
-      - name: Install desktop build dependencies
+      - name: Install build dependencies
         working-directory: src
         run: npm install
 
@@ -53,30 +54,31 @@ jobs:
         working-directory: src
         run: npm run test:full
 
-      - name: Build customer and license-manager installers
+      - name: Build 3 Windows installers
         working-directory: src
         run: npm run build:windows
 
-      - name: Verify installer outputs and generate SHA-256
+      - name: Verify installers and generate SHA-256
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path release-bundle | Out-Null
-          $customerPath = "src/release/customer/Universal-CAD-Studio-Setup-$env:VERSION-x64.exe"
-          $managerPath  = "src/release/license-manager/Universal-CAD-License-Manager-Setup-$env:VERSION-x64.exe"
-          if (-not (Test-Path $customerPath)) { throw "Customer installer was not produced: $customerPath" }
-          if (-not (Test-Path $managerPath))  { throw "License Manager installer was not produced: $managerPath" }
-          Copy-Item $customerPath release-bundle/
-          Copy-Item $managerPath release-bundle/
+          $studio = "src/release/studio/Universal-CAD-Studio-Setup-$env:VERSION-x64.exe"
+          $customerTool = "src/release/customer-license-tool/Universal-CAD-Customer-License-Tool-Setup-$env:VERSION-x64.exe"
+          $masterManager = "src/release/master-license-manager/Universal-CAD-Master-License-Manager-Setup-$env:VERSION-x64.exe"
+          foreach ($file in @($studio,$customerTool,$masterManager)) {
+            if (-not (Test-Path $file)) { throw "Required installer was not produced: $file" }
+            Copy-Item $file release-bundle/
+          }
           Get-ChildItem release-bundle/*.exe | Sort-Object Name | ForEach-Object {
             $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
             "$hash  $($_.Name)" | Add-Content release-bundle/SHA256SUMS.txt
             Write-Host "$($_.Name) [$($_.Length) bytes] SHA256=$hash"
           }
 
-      - name: Upload Windows installers artifact
+      - name: Upload Suite artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Universal-CAD-Desktop-v${{ env.VERSION }}-Windows
+          name: Universal-CAD-Suite-v${{ env.VERSION }}-Windows
           path: release-bundle/*
           if-no-files-found: error
           retention-days: 30
@@ -92,5 +94,5 @@ jobs:
           if ($LASTEXITCODE -eq 0) {
             gh release upload "$env:TAG" $files --clobber
           } else {
-            gh release create "$env:TAG" $files --target "$env:GITHUB_SHA" --title "Universal CAD Desktop v$env:VERSION" --notes "Desktop release embedding Universal CAD Studio PWA v0.26.0 with machine-bound offline licensing. Administrator signing secrets are intentionally excluded from the repository and release."
+            gh release create "$env:TAG" $files --target "$env:GITHUB_SHA" --title "Universal CAD Suite v$env:VERSION" --notes "Universal CAD Suite v$env:VERSION with Universal CAD Engine v$env:ENGINE_VERSION. Includes Studio, Customer License Tool, and owner-only Master License Manager. 100% offline multi-seat licensing. Master signing secrets and generated Owner Universal licenses are intentionally excluded from the repository and release."
           }
