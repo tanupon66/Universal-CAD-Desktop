@@ -25,6 +25,21 @@ jobs:
           Expand-Archive -Path "Universal-CAD-Desktop-v0.26.0-public-source.zip" -DestinationPath src -Force
           if (-not (Test-Path "src/package.json")) { throw "Source archive did not expand correctly." }
 
+      - name: Fix electron-builder application root
+        shell: pwsh
+        run: |
+          $configs = @(
+            "src/electron-builder.customer.yml",
+            "src/electron-builder.manager.yml"
+          )
+          foreach ($config in $configs) {
+            $text = Get-Content $config -Raw
+            if ($text -notmatch '(?m)^  app: \.$') {
+              $text = $text -replace '(?m)^directories:\r?\n', "directories:`r`n  app: .`r`n"
+              Set-Content -Path $config -Value $text -NoNewline
+            }
+          }
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
