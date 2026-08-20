@@ -1,0 +1,98 @@
+name: Build Universal CAD Suite Windows
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Validate and package Suite
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Select and expand latest Suite source
+        shell: pwsh
+        run: |
+          $items = Get-ChildItem "Universal-CAD-Suite-v*-public-source.zip" -File | ForEach-Object {
+            if ($_.Name -match '^Universal-CAD-Suite-v(?<v>\d+\.\d+\.\d+)-public-source\.zip$') {
+              [PSCustomObject]@{ File = $_; Version = [version]$Matches.v }
+            }
+          }
+          $selected = $items | Sort-Object Version -Descending | Select-Object -First 1
+          if (-not $selected) { throw "No Universal-CAD-Suite-v*-public-source.zip archive was found." }
+          New-Item -ItemType Directory -Force -Path src | Out-Null
+          Expand-Archive -Path $selected.File.FullName -DestinationPath src -Force
+          if (-not (Test-Path "src/package.json")) { throw "Suite source archive did not expand correctly." }
+          $suite = Get-Content "src/package.json" -Raw | ConvertFrom-Json
+          $engine = Get-Content "src/app/package.json" -Raw | ConvertFrom-Json
+          $version = [string]$suite.version
+          $engineVersion = [string]$engine.version
+          if ($version -ne $selected.Version.ToString()) { throw "Archive filename version $($selected.Version) does not match Suite package.json version $version." }
+          "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "ENGINE_VERSION=$engineVersion" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "TAG=suite-v$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host "Selected $($selected.File.Name) -> Suite v$version / Engine v$engineVersion"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install build dependencies
+        working-directory: src
+        run: npm install
+
+      - name: Run full validation gate
+        working-directory: src
+        run: npm run test:full
+
+      - name: Build 3 Windows installers
+        working-directory: src
+        run: npm run build:windows
+
+      - name: Verify installers and generate SHA-256
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path release-bundle | Out-Null
+          $studio = "src/release/studio/Universal-CAD-Studio-Setup-$env:VERSION-x64.exe"
+          $customerTool = "src/release/customer-license-tool/Universal-CAD-Customer-License-Tool-Setup-$env:VERSION-x64.exe"
+          $masterManager = "src/release/master-license-manager/Universal-CAD-Master-License-Manager-Setup-$env:VERSION-x64.exe"
+          foreach ($file in @($studio,$customerTool,$masterManager)) {
+            if (-not (Test-Path $file)) { throw "Required installer was not produced: $file" }
+            Copy-Item $file release-bundle/
+          }
+          Get-ChildItem release-bundle/*.exe | Sort-Object Name | ForEach-Object {
+            $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
+            "$hash  $($_.Name)" | Add-Content release-bundle/SHA256SUMS.txt
+            Write-Host "$($_.Name) [$($_.Length) bytes] SHA256=$hash"
+          }
+
+      - name: Upload Suite artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Universal-CAD-Suite-v${{ env.VERSION }}-Windows
+          path: release-bundle/*
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish or refresh GitHub Release
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $files = Get-ChildItem release-bundle -File | ForEach-Object { $_.FullName }
+          gh release view "$env:TAG" *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload "$env:TAG" $files --clobber
+          } else {
+            gh release create "$env:TAG" $files --target "$env:GITHUB_SHA" --title "Universal CAD Suite v$env:VERSION" --notes "Universal CAD Suite v$env:VERSION · Engine v$env:ENGINE_VERSION"
+          }
