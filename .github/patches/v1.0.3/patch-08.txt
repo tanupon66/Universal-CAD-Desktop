@@ -1,0 +1,14 @@
++const master=fs.readFileSync(path.join(ROOT,'master-license-manager','main.cjs'),'utf8');
++const preload=fs.readFileSync(path.join(ROOT,'master-license-manager','preload.cjs'),'utf8');
++assert(machine.includes("timeout: 5000"),'v1.0.0 machine command timeout must be retained');
++assert(machine.includes("Get-CimInstance Win32_ComputerSystemProduct"),'v1.0.0 identity path must be retained');
++assert(machine.includes("return `win-guid-fallback|GUID:${normalizeHardwareValue(machineGuid)}`"),'v1.0.0 GUID fallback must be retained');
++assert(host.includes("return `UCAD-HOST-${machine.replace(/^UCAD-/, '')}`"),'v1.0.0 hardware-bound License Host must be retained');
++assert(host.includes("record.schema !== 'ucad-license-host-identity-v1'"),'v1.0.0 host schema must be retained');
++assert(master.includes("master:remove-key"),'Remove Master Key handler missing');
++assert(preload.includes("removeKey"),'Remove Master Key bridge missing');
++for(const rel of ['desktop/activation.html','desktop/activation.js','customer-license-tool/ui/index.html','customer-license-tool/ui/app.js','master-license-manager/ui/index.html','master-license-manager/ui/app.js']){
++ const t=fs.readFileSync(path.join(ROOT,rel),'utf8');
++ assert(!/[\u0E00-\u0E7F]/.test(t),`${rel} contains Thai product UI text`);
++}
++console.log('v1.0.3 v1.0.0-license-path regression tests: PASS');
