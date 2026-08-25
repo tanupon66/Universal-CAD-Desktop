@@ -1,0 +1,88 @@
+   const {verified,privateKeyPem}=verifyPool(pool); const p=verified.payload;
+-  const today=todayLocal(new Date()); if(today<p.validFrom) throw new Error(`Entitlement เริ่มใช้งานวันที่ ${p.validFrom}`); if(today>p.validUntil) throw new Error(`Entitlement หมดอายุวันที่ ${p.validUntil}`);
++  const today=todayLocal(new Date()); if(today<p.validFrom) throw new Error(`Entitlement is valid from ${p.validFrom}.`); if(today>p.validUntil) throw new Error(`Entitlement expired on ${p.validUntil}.`);
+   pool.allocations=Array.isArray(pool.allocations)?pool.allocations:[];
+   let allocation=pool.allocations.find(a=>normalizeMachineId(a.machineId)===machineId);
+   if(!allocation){
+-    if(pool.allocations.length>=p.seats) throw new Error(`Seats เต็มแล้ว (${pool.allocations.length}/${p.seats})`);
++    if(pool.allocations.length>=p.seats) throw new Error(`All seats are allocated (${pool.allocations.length}/${p.seats}).`);
+     const used=new Set(pool.allocations.map(a=>Number(a.seatNumber)));
+     let seatNumber=1; while(used.has(seatNumber)) seatNumber++;
+     allocation={ seatNumber, machineId, computerLabel, firstIssuedAt:new Date().toISOString() };
+   }
+   const grant={ grantId:crypto.randomUUID(), entitlementId:p.entitlementId, entitlementDigest:entitlementDigest(pool.entitlement), seatNumber:allocation.seatNumber, computerLabel:computerLabel||allocation.computerLabel||`Seat ${allocation.seatNumber}`, machineId, validFrom:p.validFrom, validUntil:p.validUntil, issuedAt:new Date().toISOString(), nonce:crypto.randomBytes(18).toString('base64url') };
+   const license=createMachineLicense({entitlement:pool.entitlement,grant},privateKeyPem);
+-  const safeCustomer=p.customerName.replace(/[^A-Za-z0-9ก-๙_-]+/g,'_');
++  const safeCustomer=p.customerName.replace(/[^\p{L}\p{N}_-]+/gu,'_');
+   const out=await dialog.showSaveDialog(win,{ title:'Save machine license', defaultPath:`UCAD-${safeCustomer}-Seat${String(allocation.seatNumber).padStart(2,'0')}-${machineId.slice(-9)}.ucadlic`, filters:[{name:'Universal CAD Machine License',extensions:['ucadlic']}] });
+   if(out.canceled||!out.filePath)return {canceled:true};
+   fs.writeFileSync(out.filePath,serializeMachineLicense(license),{encoding:'utf8',mode:0o600});
+@@ -113,15 +113,15 @@ ipcMain.handle('customer:import-recovery', async (_event, input) => {
+   if (pick.canceled || !pick.filePaths[0]) return { canceled:true };
+   let document;
+   try { document = JSON.parse(fs.readFileSync(pick.filePaths[0], 'utf8')); }
+-  catch { throw new Error('Recovery Backup อ่านไม่ได้'); }
++  catch { throw new Error('Unable to read the Recovery Backup.'); }
+   const payload = openRecoveryBundle(document, password);
+-  if (String(payload.hostId) !== String(identity.currentHostId())) throw new Error('Recovery Backup นี้ใช้ได้เฉพาะ License Host เครื่องเดิมเท่านั้น');
++  if (String(payload.hostId) !== String(identity.currentHostId())) throw new Error('Recovery Backup belongs to a different License Host.');
+   identity.restore(payload.hostRecord);
+   ledger.write(payload.ledger || { schema:'ucad-customer-ledger-v1', pools:{} });
+   return { canceled:false, hostId:payload.hostId, pools:Object.keys(payload.ledger?.pools || {}).length, restoredAt:new Date().toISOString() };
+ });
+ 
+-ipcMain.handle('customer:info',()=>({version:app.getVersion(),suiteVersion:'1.0.0',engineVersion:'0.26.0',reinstallStableMachineId:true,recoveryBackup:true}));
++ipcMain.handle('customer:info',()=>({version:app.getVersion(),suiteVersion:'1.0.3',engineVersion:'0.26.0',reinstallStableMachineId:true,recoveryBackup:true}));
+ 
+ app.whenReady().then(()=>{identity=new HostIdentity(app.getPath('userData'));ledger=new CustomerLedger(app.getPath('userData'));identity.ensure();createWindow();app.on('activate',()=>{if(BrowserWindow.getAllWindows().length===0)createWindow();});});
+ app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit();});
+diff --git a/customer-license-tool/recovery.cjs b/customer-license-tool/recovery.cjs
+index 5257ef9..32d85ea 100644
+--- a/customer-license-tool/recovery.cjs
++++ b/customer-license-tool/recovery.cjs
+@@ -5,12 +5,12 @@ const RECOVERY_SCHEMA = 'ucad-license-host-recovery-v1';
+ 
+ function deriveKey(password, salt) {
+   const pass = String(password || '');
+-  if (pass.length < 10) throw new Error('Recovery Password ต้องยาวอย่างน้อย 10 ตัวอักษร');
++  if (pass.length < 10) throw new Error('Recovery Password must be at least 10 characters.');
+   return crypto.scryptSync(pass, salt, 32, { N: 32768, r: 8, p: 1, maxmem: 64 * 1024 * 1024 });
+ }
+ 
+ function createRecoveryBundle({ hostRecord, ledger, password }) {
+-  if (!hostRecord?.hostId || !hostRecord?.privateKeyPem || !hostRecord?.publicKeyPem) throw new Error('License Host identity ไม่สมบูรณ์');
++  if (!hostRecord?.hostId || !hostRecord?.privateKeyPem || !hostRecord?.publicKeyPem) throw new Error('License Host identity is incomplete.');
+   const payload = {
+     schema: 'ucad-license-host-recovery-payload-v1',
+     hostId: String(hostRecord.hostId),
+@@ -37,7 +37,7 @@ function createRecoveryBundle({ hostRecord, ledger, password }) {
+ }
+ 
+ function openRecoveryBundle(document, password) {
+-  if (!document || document.schema !== RECOVERY_SCHEMA) throw new Error('Recovery Backup format ไม่รองรับ');
++  if (!document || document.schema !== RECOVERY_SCHEMA) throw new Error('Unsupported Recovery Backup format.');
+   const salt = Buffer.from(String(document.salt || ''), 'base64');
+   const key = deriveKey(password, salt);
+   const decipher = crypto.createDecipheriv('aes-256-gcm', key, Buffer.from(String(document.iv || ''), 'base64'));
+@@ -49,10 +49,10 @@ function openRecoveryBundle(document, password) {
+       decipher.final(),
+     ]).toString('utf8'));
+   } catch {
+-    throw new Error('Recovery Password ไม่ถูกต้อง หรือไฟล์ Backup เสียหาย');
++    throw new Error('Recovery Password is incorrect or the backup file is damaged.');
+   }
+-  if (!payload || payload.schema !== 'ucad-license-host-recovery-payload-v1') throw new Error('Recovery payload ไม่รองรับ');
+-  if (String(payload.hostId) !== String(document.hostId)) throw new Error('Recovery host binding ไม่ถูกต้อง');
++  if (!payload || payload.schema !== 'ucad-license-host-recovery-payload-v1') throw new Error('Unsupported Recovery payload.');
++  if (String(payload.hostId) !== String(document.hostId)) throw new Error('Recovery host binding mismatch.');
+   return payload;
+ }
+ 
+diff --git a/customer-license-tool/ui/app.js b/customer-license-tool/ui/app.js
+index 36a1f1f..fc6ebd1 100644
+--- a/customer-license-tool/ui/app.js
++++ b/customer-license-tool/ui/app.js
+@@ -1,4 +1,11 @@
+-'use strict';const $=id=>document.getElementById(id);const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));function msg(t,ok=false){$('message').textContent=t;$('message').className='message'+(ok?' success':'');}async function refresh(){const pools=await window.customerLicenseApi.list();$('entitlementId').innerHTML=pools.map(p=>`<option value="${p.entitlementId}">${esc(p.customerName)} · ${esc(p.editionName)} · ${p.used}/${p.seats}</option>`).join('');$('pools').innerHTML=pools.length?pools.map(p=>`<article class="pool"><div><b>${esc(p.productDisplayName)}</b><span>${esc(p.customerName)} · ${esc(p.entitlementLabel)}</span></div><strong>${p.used}/${p.seats}</strong><small>${p.validFrom} → ${p.validUntil} · ${p.available} available</small></article>`).join(''):'<p class="help">ยังไม่มี Entitlement</p>';} (async()=>{const [h,i]=await Promise.all([window.customerLicenseApi.hostInfo(),window.customerLicenseApi.appInfo()]);$('hostId').textContent=h.hostId;$('hostFingerprint').textContent=`Fingerprint ${h.fingerprint.slice(0,16)}…`;$('version').textContent=`Customer License Tool v${i.suiteVersion} · Engine ${i.engineVersion}`;await refresh();})();$('copyEnrollment').addEventListener('click',async()=>{await window.customerLicenseApi.copyEnrollment();msg('คัดลอก Enrollment Code แล้ว',true);});$('importEntitlement').addEventListener('click',async()=>{try{const r=await window.customerLicenseApi.importEntitlement();if(!r.canceled){msg(`Import สำเร็จ${r.consumed?' · ลบไฟล์ต้นทางแล้ว':''}`,true);await refresh();}}catch(e){msg(e.message);}});$('issue').addEventListener('click',async()=>{try{const r=await window.customerLicenseApi.issue({entitlementId:$('entitlementId').value,machineId:$('machineId').value.trim(),computerLabel:$('computerLabel').value.trim()});if(!r.canceled){msg(`สร้าง License สำเร็จ · Seat ${r.seatNumber}/${r.seats} · ${r.productDisplayName}`,true);await refresh();}}catch(e){msg(e.message);}});
+-
+-$('exportRecovery').addEventListener('click',async()=>{try{const password=$('recoveryPassword').value;if(password.length<10)throw new Error('กรุณาตั้ง Recovery Password อย่างน้อย 10 ตัวอักษร');const r=await window.customerLicenseApi.exportRecovery({password});if(!r.canceled)msg(`บันทึก Recovery Backup สำเร็จ · ${r.pools} entitlement pool(s)`,true);}catch(e){msg(e.message);}});
