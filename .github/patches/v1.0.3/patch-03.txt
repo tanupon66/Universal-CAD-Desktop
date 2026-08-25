@@ -1,0 +1,115 @@
++      <div><span class="eyebrow">UNIVERSAL CAD</span><h1>Universal CAD Studio</h1><p>Suite 1.0.3 · Engine 0.26.0</p></div>
+     </section>
+     <section class="card machine-card">
+-      <div class="card-head"><div><span class="eyebrow">MACHINE ID</span><h2>รหัสเครื่อง</h2></div><button id="copyBtn" class="secondary">คัดลอกรหัส</button></div>
+-      <code id="machineId">กำลังอ่าน…</code>
+-      <p class="help">ส่งรหัสนี้ให้ผู้ดูแล License เพื่อออกไฟล์ <b>.ucadlic</b> ที่ผูกกับเครื่องนี้</p>
++      <div class="card-head"><div><span class="eyebrow">MACHINE ID</span><h2>Machine ID</h2></div><button id="copyBtn" class="secondary">Copy</button></div>
++      <code id="machineId">Reading…</code>
+     </section>
+     <section class="card">
+-      <div class="card-head"><div><span class="eyebrow">ACTIVATION</span><h2>นำเข้า License</h2></div><span id="statusPill" class="pill">ยังไม่เปิดใช้งาน</span></div>
++      <div class="card-head"><div><span class="eyebrow">LICENSE</span><h2>Activation</h2></div><span id="statusPill" class="pill">Not activated</span></div>
+       <div id="details" class="details hidden"></div>
+-      <button id="activateBtn" class="primary">เลือกไฟล์ .ucadlic และเปิดใช้งาน</button>
+-      <button id="openBtn" class="secondary full hidden">เข้าโปรแกรม</button>
++      <button id="activateBtn" class="primary">Activate License</button>
++      <button id="openBtn" class="secondary full hidden">Open Studio</button>
+       <div id="message" class="message hidden"></div>
+-      <p class="help">เมื่อเปิดใช้งานสำเร็จ License จะถูกเก็บแบบเข้ารหัสใน Windows ของเครื่องนี้ และโปรแกรมจะพยายามลบไฟล์ License ต้นทางที่เลือกโดยอัตโนมัติ</p>
+     </section>
+-    <footer><span id="appVersion">Desktop</span><span>License data stays on this computer</span></footer>
++    <footer><span id="appVersion">Universal CAD Studio</span><span>Offline License</span></footer>
+   </main>
+   <script src="./activation.js"></script>
+ </body>
+diff --git a/desktop/activation.js b/desktop/activation.js
+index 1bebf90..2bd2e2e 100644
+--- a/desktop/activation.js
++++ b/desktop/activation.js
+@@ -2,30 +2,26 @@
+ const $ = (id) => document.getElementById(id);
+ const machineId = $('machineId'), copyBtn = $('copyBtn'), activateBtn = $('activateBtn'), openBtn = $('openBtn');
+ const message = $('message'), details = $('details'), statusPill = $('statusPill'), appVersion = $('appVersion');
+-
+-function showMessage(text, success = false) { message.textContent = text; message.classList.remove('hidden','success'); if (success) message.classList.add('success'); }
+-function renderStatus(status) {
+-  machineId.textContent = status.machineId || '—';
+-  if (!status.ok) { statusPill.textContent = status.code === 'EXPIRED' ? 'หมดอายุ' : 'ยังไม่เปิดใช้งาน'; statusPill.classList.remove('valid'); details.classList.add('hidden'); openBtn.classList.add('hidden'); return; }
+-  const p = status.payload;
+-  statusPill.textContent = 'ใช้งานได้'; statusPill.classList.add('valid');
+-  details.innerHTML = `<b>ลูกค้า</b><span>${escapeHtml(p.customerName)}</span><b>Edition</b><span>${escapeHtml(p.productDisplayName || p.editionName || 'Licensed')}</span><b>Seat</b><span>${escapeHtml(p.seatNumber || 1)} / ${escapeHtml(p.seatCount || 1)}</span><b>คอมพิวเตอร์</b><span>${escapeHtml(p.computerLabel || p.machineId)}</span><b>License ID</b><span>${escapeHtml(p.licenseId)}</span><b>ระยะเวลา</b><span>${escapeHtml(p.validFrom)} ถึง ${escapeHtml(p.validUntil)}</span><b>Version</b><span>Suite ${escapeHtml(p.suiteVersion || '1.0.0')} · Engine ${escapeHtml(p.engineVersion || '0.26.0')}</span>`;
+-  details.classList.remove('hidden'); openBtn.classList.remove('hidden');
+-}
++function showMessage(text, success=false){message.textContent=text;message.classList.remove('hidden','success');if(success)message.classList.add('success');}
+ function escapeHtml(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
+-
+-copyBtn.addEventListener('click', async () => { await window.desktopLicense.copyMachineId(); copyBtn.textContent='คัดลอกแล้ว'; setTimeout(()=>copyBtn.textContent='คัดลอกรหัส',1200); });
+-activateBtn.addEventListener('click', async () => {
+-  message.classList.add('hidden'); activateBtn.disabled = true;
+-  const response = await window.desktopLicense.chooseAndActivate();
+-  activateBtn.disabled = false;
+-  if (response.canceled) return;
+-  if (response.error) { showMessage(response.error.message); return; }
+-  renderStatus(response.result);
+-  const consume = response.result.consumed ? ' ไฟล์ License ต้นทางถูกลบแล้ว' : ` ${response.result.consumeWarning || ''}`;
+-  showMessage(`เปิดใช้งานสำเร็จ.${consume}`, true);
+-  setTimeout(() => window.desktopLicense.openMainApp(), 500);
++function renderStatus(status){
++  machineId.textContent=status.machineId||'—';
++  if(!status.ok){
++    statusPill.textContent=status.code==='EXPIRED'?'Expired':'Not activated';
++    statusPill.classList.remove('valid');details.classList.add('hidden');openBtn.classList.add('hidden');return;
++  }
++  const p=status.payload;
++  statusPill.textContent='Licensed';statusPill.classList.add('valid');
++  details.innerHTML=`<b>Customer</b><span>${escapeHtml(p.customerName||p.ownerName||'Owner')}</span><b>Edition</b><span>${escapeHtml(p.productDisplayName||p.editionName||'Licensed')}</span><b>Seat</b><span>${escapeHtml(p.seatNumber||1)} / ${escapeHtml(p.seatCount||1)}</span><b>Computer</b><span>${escapeHtml(p.computerLabel||p.machineId||'Any')}</span><b>License ID</b><span>${escapeHtml(p.licenseId)}</span><b>Valid</b><span>${escapeHtml(p.validFrom)} — ${escapeHtml(p.validUntil)}</span><b>Version</b><span>Suite ${escapeHtml(p.suiteVersion||'1.0.3')} · Engine ${escapeHtml(p.engineVersion||'0.26.0')}</span>`;
++  details.classList.remove('hidden');openBtn.classList.remove('hidden');
++}
++copyBtn.addEventListener('click',async()=>{await window.desktopLicense.copyMachineId();copyBtn.textContent='Copied';setTimeout(()=>copyBtn.textContent='Copy',1200);});
++activateBtn.addEventListener('click',async()=>{
++  message.classList.add('hidden');activateBtn.disabled=true;
++  const response=await window.desktopLicense.chooseAndActivate();
++  activateBtn.disabled=false;if(response.canceled)return;
++  if(response.error){showMessage(response.error.message);return;}
++  renderStatus(response.result);showMessage('Activation complete.',true);setTimeout(()=>window.desktopLicense.openMainApp(),500);
+ });
+-openBtn.addEventListener('click', () => window.desktopLicense.openMainApp());
+-
+-(async () => { const [status, info] = await Promise.all([window.desktopLicense.status(), window.desktopLicense.appInfo()]); renderStatus(status); appVersion.textContent = `${info.name} · Suite ${info.suiteVersion || info.version} · Engine ${info.engineVersion || '0.26.0'}`; if (!status.ok && !['NO_LICENSE'].includes(status.code)) showMessage(status.message); })();
++openBtn.addEventListener('click',()=>window.desktopLicense.openMainApp());
++(async()=>{try{const [status,info]=await Promise.all([window.desktopLicense.status(),window.desktopLicense.appInfo()]);renderStatus(status);appVersion.textContent=`${info.name} · Suite ${info.suiteVersion||info.version} · Engine ${info.engineVersion||'0.26.0'}`;if(!status.ok&&!['NO_LICENSE'].includes(status.code))showMessage(status.message);}catch(error){machineId.textContent='Unavailable';showMessage(error?.message||'Unable to read license status.');}})();
+diff --git a/desktop/feature-gate.cjs b/desktop/feature-gate.cjs
+index 25535ad..9a99e8f 100644
+--- a/desktop/feature-gate.cjs
++++ b/desktop/feature-gate.cjs
+@@ -56,7 +56,7 @@ function installFeatureGate(ipcRenderer) {
+     badge.id = 'ucadEditionBadge';
+     badge.className = 'status-pill';
+     const p = status?.payload || {};
+-    badge.textContent = `${p.editionName || 'Licensed'} · Suite ${p.suiteVersion || '1.0.0'} · Engine ${p.engineVersion || '0.26.0'}`;
++    badge.textContent = `${p.editionName || 'Licensed'} · Suite ${p.suiteVersion || '1.0.3'} · Engine ${p.engineVersion || '0.26.0'}`;
+     badge.title = `${p.productDisplayName || 'Universal CAD Studio'} · Seat ${p.seatNumber || 1}/${p.seatCount || 1}`;
+     target.prepend(badge);
+   }
+diff --git a/desktop/main.cjs b/desktop/main.cjs
+index 5145db7..a893d16 100644
+--- a/desktop/main.cjs
++++ b/desktop/main.cjs
+@@ -6,7 +6,7 @@ const { app, BrowserWindow, ipcMain, dialog, clipboard, shell, protocol } = requ
+ const { LicenseService } = require('./license-service.cjs');
+ 
+ const APP_NAME = 'Universal CAD Studio';
+-const SUITE_VERSION = '1.0.0';
++const SUITE_VERSION = '1.0.3';
+ const ENGINE_VERSION = '0.26.0';
+ 
+ protocol.registerSchemesAsPrivileged([{
+diff --git a/desktop/preload.cjs b/desktop/preload.cjs
+index a1c5e53..93fd578 100644
+--- a/desktop/preload.cjs
++++ b/desktop/preload.cjs
+@@ -8,5 +8,5 @@ contextBridge.exposeInMainWorld('desktopLicense', {
+   openMainApp: () => ipcRenderer.invoke('license:open-main-app'),
+   appInfo: () => ipcRenderer.invoke('app:info'),
+ });
