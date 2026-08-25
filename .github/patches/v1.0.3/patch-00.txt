@@ -1,0 +1,167 @@
+diff --git a/BUILD-WINDOWS.cmd b/BUILD-WINDOWS.cmd
+index 48aed37..0d593e4 100644
+--- a/BUILD-WINDOWS.cmd
++++ b/BUILD-WINDOWS.cmd
+@@ -1,10 +1,10 @@
+ @echo off
+ setlocal
+ cd /d "%~dp0"
+-title Universal CAD Suite v1.0.0 - Windows Builder
++title Universal CAD Suite v1.0.3 - Windows Builder
+ 
+ echo ============================================================
+-echo  Universal CAD Suite v1.0.0 / Engine v0.26.0
++echo  Universal CAD Suite v1.0.3 / Engine v0.26.0
+ echo ============================================================
+ echo.
+ where node >nul 2>nul || (echo [ERROR] Node.js 22+ not found.& pause & exit /b 1)
+diff --git a/README-DESKTOP-TH.md b/README-DESKTOP-TH.md
+index 9b11f21..457b731 100644
+--- a/README-DESKTOP-TH.md
++++ b/README-DESKTOP-TH.md
+@@ -1,10 +1,10 @@
+-# Universal CAD Suite v1.0.0
++# Universal CAD Suite v1.0.3
+ 
+ **Engine: Universal CAD Studio PWA v0.26.0**
+ 
+-Universal CAD Suite v1.0.0 เป็นรุ่น Desktop/Commercial Licensing รุ่นแรก โดยแยกเลขเวอร์ชันผลิตภัณฑ์ออกจาก Engine ชัดเจน:
++Universal CAD Suite v1.0.3 เป็นรุ่น Desktop/Commercial Licensing รุ่นแรก โดยแยกเลขเวอร์ชันผลิตภัณฑ์ออกจาก Engine ชัดเจน:
+ 
+-- Product Suite: `1.0.0`
++- Product Suite: `1.0.3`
+ - CAD/NPI Engine: `0.26.0`
+ 
+ ## โปรแกรม 3 ตัว
+@@ -41,7 +41,7 @@ Master License Manager สามารถเปิด/ปิด Feature รา
+ 
+ ## รองรับลง Windows ใหม่
+ 
+-Suite v1.0.0 ใช้ Hardware-stable Machine ID จาก System UUID, Baseboard Serial, BIOS Serial และ Processor ID โดย **ไม่ใช้ Windows MachineGuid เป็นส่วนหลัก** ดังนั้นการลง Windows ใหม่บนฮาร์ดแวร์เดิมจะได้ Machine ID เดิมในเครื่อง Windows ปกติที่อ่าน Hardware ID ได้
++Suite v1.0.3 ใช้ Hardware-stable Machine ID จาก System UUID, Baseboard Serial, BIOS Serial และ Processor ID โดย **ไม่ใช้ Windows MachineGuid เป็นส่วนหลัก** ดังนั้นการลง Windows ใหม่บนฮาร์ดแวร์เดิมจะได้ Machine ID เดิมในเครื่อง Windows ปกติที่อ่าน Hardware ID ได้
+ 
+ หลังลง Windows ใหม่:
+ 
+@@ -65,9 +65,9 @@ Master License Manager สามารถสร้าง **Owner Universal Licen
+ 
+ ## License compatibility
+ 
+-Suite v1.0.0 ยังคง product ID และ Ed25519 public verification key เดิมจาก Desktop v0.26/v0.27 และมี Legacy Machine-ID compatibility สำหรับ License รุ่นเดิมบน Windows installation เดิม
++Suite v1.0.3 ยังคง product ID และ Ed25519 public verification key เดิมจาก Desktop v0.26/v0.27 และมี Legacy Machine-ID compatibility สำหรับ License รุ่นเดิมบน Windows installation เดิม
+ 
+-License ใหม่ของ Suite v1.0.0 ใช้ entitlement chain + delegated License Host key และ Hardware-stable Machine ID
++License ใหม่ของ Suite v1.0.3 ใช้ entitlement chain + delegated License Host key และ Hardware-stable Machine ID
+ 
+ ## Validation
+ 
+diff --git a/README.md b/README.md
+index 9b11f21..457b731 100644
+--- a/README.md
++++ b/README.md
+@@ -1,10 +1,10 @@
+-# Universal CAD Suite v1.0.0
++# Universal CAD Suite v1.0.3
+ 
+ **Engine: Universal CAD Studio PWA v0.26.0**
+ 
+-Universal CAD Suite v1.0.0 เป็นรุ่น Desktop/Commercial Licensing รุ่นแรก โดยแยกเลขเวอร์ชันผลิตภัณฑ์ออกจาก Engine ชัดเจน:
++Universal CAD Suite v1.0.3 เป็นรุ่น Desktop/Commercial Licensing รุ่นแรก โดยแยกเลขเวอร์ชันผลิตภัณฑ์ออกจาก Engine ชัดเจน:
+ 
+-- Product Suite: `1.0.0`
++- Product Suite: `1.0.3`
+ - CAD/NPI Engine: `0.26.0`
+ 
+ ## โปรแกรม 3 ตัว
+@@ -41,7 +41,7 @@ Master License Manager สามารถเปิด/ปิด Feature รา
+ 
+ ## รองรับลง Windows ใหม่
+ 
+-Suite v1.0.0 ใช้ Hardware-stable Machine ID จาก System UUID, Baseboard Serial, BIOS Serial และ Processor ID โดย **ไม่ใช้ Windows MachineGuid เป็นส่วนหลัก** ดังนั้นการลง Windows ใหม่บนฮาร์ดแวร์เดิมจะได้ Machine ID เดิมในเครื่อง Windows ปกติที่อ่าน Hardware ID ได้
++Suite v1.0.3 ใช้ Hardware-stable Machine ID จาก System UUID, Baseboard Serial, BIOS Serial และ Processor ID โดย **ไม่ใช้ Windows MachineGuid เป็นส่วนหลัก** ดังนั้นการลง Windows ใหม่บนฮาร์ดแวร์เดิมจะได้ Machine ID เดิมในเครื่อง Windows ปกติที่อ่าน Hardware ID ได้
+ 
+ หลังลง Windows ใหม่:
+ 
+@@ -65,9 +65,9 @@ Master License Manager สามารถสร้าง **Owner Universal Licen
+ 
+ ## License compatibility
+ 
+-Suite v1.0.0 ยังคง product ID และ Ed25519 public verification key เดิมจาก Desktop v0.26/v0.27 และมี Legacy Machine-ID compatibility สำหรับ License รุ่นเดิมบน Windows installation เดิม
++Suite v1.0.3 ยังคง product ID และ Ed25519 public verification key เดิมจาก Desktop v0.26/v0.27 และมี Legacy Machine-ID compatibility สำหรับ License รุ่นเดิมบน Windows installation เดิม
+ 
+-License ใหม่ของ Suite v1.0.0 ใช้ entitlement chain + delegated License Host key และ Hardware-stable Machine ID
++License ใหม่ของ Suite v1.0.3 ใช้ entitlement chain + delegated License Host key และ Hardware-stable Machine ID
+ 
+ ## Validation
+ 
+diff --git a/REPO_BOOTSTRAP.md b/REPO_BOOTSTRAP.md
+index 877916f..8f4eaa2 100644
+--- a/REPO_BOOTSTRAP.md
++++ b/REPO_BOOTSTRAP.md
+@@ -1,10 +1,10 @@
+-# Repository bootstrap — Universal CAD Suite v1.0.0
++# Repository bootstrap — Universal CAD Suite v1.0.3
+ 
+ Target repository: `tanupon66/Universal-CAD-Desktop`
+ 
+ Recommended visibility: **Private**
+ 
+-Suite release tag: `suite-v1.0.0`
++Suite release tag: `suite-v1.0.3`
+ Engine: `0.26.0`
+ 
+ GitHub Actions must run the complete validation gate and build three Windows x64 NSIS installers:
+diff --git a/SECURITY.md b/SECURITY.md
+index e15fca1..5c65e28 100644
+--- a/SECURITY.md
++++ b/SECURITY.md
+@@ -1,4 +1,4 @@
+-# Universal CAD Suite v1.0.0 — Security
++# Universal CAD Suite v1.0.3 — Security
+ 
+ The repository/installers must never contain:
+ 
+diff --git a/customer-license-tool/host-identity.cjs b/customer-license-tool/host-identity.cjs
+index 0870866..6768926 100644
+--- a/customer-license-tool/host-identity.cjs
++++ b/customer-license-tool/host-identity.cjs
+@@ -55,11 +55,11 @@ class HostIdentity {
+   currentHostId() { return this._hostId(); }
+   restore(record) {
+     const expected = this._hostId();
+-    if (!record || record.schema !== 'ucad-license-host-identity-v1') throw new Error('Recovery Host Identity ไม่รองรับ');
+-    if (String(record.hostId) !== String(expected)) throw new Error('Recovery Backup นี้เป็นของ License Host คนละเครื่อง');
++    if (!record || record.schema !== 'ucad-license-host-identity-v1') throw new Error('Unsupported Recovery Host Identity.');
++    if (String(record.hostId) !== String(expected)) throw new Error('Recovery Backup belongs to a different License Host.');
+     const privateKey = crypto.createPrivateKey(record.privateKeyPem);
+     const derived = crypto.createPublicKey(privateKey).export({ type:'spki', format:'pem' });
+-    if (String(derived).trim() !== String(record.publicKeyPem).trim()) throw new Error('Recovery Host key pair ไม่ตรงกัน');
++    if (String(derived).trim() !== String(record.publicKeyPem).trim()) throw new Error('Recovery Host key pair mismatch.');
+     this._write(record);
+     return record;
+   }
+diff --git a/customer-license-tool/main.cjs b/customer-license-tool/main.cjs
+index 0b90b65..514ab98 100644
+--- a/customer-license-tool/main.cjs
++++ b/customer-license-tool/main.cjs
+@@ -48,11 +48,11 @@ ipcMain.handle('customer:import-entitlement', async () => {
+   const verified=verifyEntitlement(doc,MASTER_PUBLIC_KEY);
+   if(!verified.ok) throw new Error(verified.message);
+   const host=identity.privateInfo();
+-  if(verified.payload.licenseHostId!==host.hostId) throw new Error('Entitlement นี้ถูกออกให้ License Host เครื่องอื่น');
++  if(verified.payload.licenseHostId!==host.hostId) throw new Error('Entitlement belongs to a different License Host.');
+   // Prove that this host can open the sealed delegated key before saving the pool.
+   const privateKeyPem=unsealForHost(doc.sealedIssuer,host.privateKeyPem);
+   const derived=crypto.createPublicKey(crypto.createPrivateKey(privateKeyPem)).export({type:'spki',format:'pem'}).trim();
+-  if(derived!==verified.payload.delegatedPublicKeyPem.trim()) throw new Error('Entitlement delegated key ไม่ตรงกับข้อมูลที่ Master เซ็นไว้');
++  if(derived!==verified.payload.delegatedPublicKeyPem.trim()) throw new Error('Delegated issuer key does not match the signed entitlement.');
+   const state=ledger.read();
+   const existing=state.pools[verified.payload.entitlementId];
+   state.pools[verified.payload.entitlementId]={ entitlement:doc, allocations:existing?.allocations || [], importedAt:new Date().toISOString() };
+@@ -65,21 +65,21 @@ ipcMain.handle('customer:issue', async (_event,input) => {
+   const entitlementId=String(input?.entitlementId||'');
+   const machineId=normalizeMachineId(input?.machineId);
+   const computerLabel=String(input?.computerLabel||'').trim();
+-  if(!machineId.startsWith('UCAD-') || machineId.startsWith('UCAD-HOST-')) throw new Error('Machine ID ของ Universal CAD Studio ไม่ถูกต้อง');
+-  const state=ledger.read(); const pool=state.pools[entitlementId]; if(!pool) throw new Error('ไม่พบ Entitlement ที่เลือก');
++  if(!machineId.startsWith('UCAD-') || machineId.startsWith('UCAD-HOST-')) throw new Error('Invalid Universal CAD Studio Machine ID.');
++  const state=ledger.read(); const pool=state.pools[entitlementId]; if(!pool) throw new Error('Selected Entitlement was not found.');
