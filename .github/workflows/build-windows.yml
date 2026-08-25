@@ -24,6 +24,7 @@ jobs:
           $base = "Universal-CAD-Suite-v1.0.0-public-source.zip"
           if (-not (Test-Path $base)) { throw "Required v1.0.0 baseline source was not found." }
 
+          Remove-Item src -Recurse -Force -ErrorAction SilentlyContinue
           New-Item -ItemType Directory -Force -Path src | Out-Null
           Expand-Archive -Path $base -DestinationPath src -Force
 
@@ -31,15 +32,13 @@ jobs:
           if ($parts.Count -ne 9) { throw "Suite v1.0.3 patch is incomplete. Expected 9 parts, found $($parts.Count)." }
 
           $patch = Join-Path $env:RUNNER_TEMP "suite-v1.0.3.patch"
-          Remove-Item $patch -ErrorAction SilentlyContinue
-          foreach ($part in $parts) { Get-Content $part.FullName -Raw | Add-Content -NoNewline -Encoding utf8 $patch }
+          $patchText = ($parts | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join ''
+          [System.IO.File]::WriteAllText($patch, $patchText, [System.Text.UTF8Encoding]::new($false))
 
-          Push-Location src
-          git apply --check $patch
+          git apply --check --directory=src $patch
           if ($LASTEXITCODE -ne 0) { throw "Suite v1.0.3 patch validation failed." }
-          git apply $patch
+          git apply --directory=src $patch
           if ($LASTEXITCODE -ne 0) { throw "Suite v1.0.3 patch application failed." }
-          Pop-Location
 
           $suite = Get-Content "src/package.json" -Raw | ConvertFrom-Json
           $engine = Get-Content "src/app/package.json" -Raw | ConvertFrom-Json
@@ -48,6 +47,9 @@ jobs:
 
           if ($version -ne "1.0.3") { throw "Expected Suite 1.0.3 after patch, got $version." }
           if ($engineVersion -ne "0.26.0") { throw "Expected Engine 0.26.0, got $engineVersion." }
+
+          if (-not (Test-Path "src/tests/test-v103-regression.cjs")) { throw "v1.0.3 regression test was not reconstructed." }
+          if (-not ((Get-Content "src/master-license-manager/preload.cjs" -Raw) -match 'removeKey')) { throw "Remove Master Key bridge is missing after reconstruction." }
 
           "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "ENGINE_VERSION=$engineVersion" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
@@ -81,14 +83,11 @@ jobs:
           $masterManager = "src/release/master-license-manager/Universal-CAD-Master-License-Manager-Setup-$env:VERSION-x64.exe"
 
           foreach ($file in @($studio, $customerTool, $masterManager)) {
-            if (-not (Test-Path $file)) {
-              throw "Required installer was not produced: $file"
-            }
+            if (-not (Test-Path $file)) { throw "Required installer was not produced: $file" }
             Copy-Item $file release-bundle/
           }
 
           Remove-Item "release-bundle/SHA256SUMS.txt" -ErrorAction SilentlyContinue
-
           Get-ChildItem "release-bundle/*.exe" | Sort-Object Name | ForEach-Object {
             $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
             "$hash  $($_.Name)" | Add-Content "release-bundle/SHA256SUMS.txt"
@@ -127,6 +126,7 @@ jobs:
           foreach ($file in $files) {
             $uploaded = $false
             for ($attempt = 1; $attempt -le 4; $attempt++) {
+              Write-Host "Uploading $($file.Name), attempt $attempt/4"
               gh release upload $tag "$($file.FullName)" --clobber
               if ($LASTEXITCODE -eq 0) { $uploaded = $true; break }
               if ($attempt -lt 4) { Start-Sleep -Seconds (5 * $attempt) }
