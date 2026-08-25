@@ -1,0 +1,53 @@
+-$('importRecovery').addEventListener('click',async()=>{try{const password=$('recoveryPassword').value;if(password.length<10)throw new Error('กรุณากรอก Recovery Password ของไฟล์ Backup');const r=await window.customerLicenseApi.importRecovery({password});if(!r.canceled){msg(`กู้ License Host สำเร็จ · ${r.pools} entitlement pool(s)`,true);const h=await window.customerLicenseApi.hostInfo();$('hostId').textContent=h.hostId;$('hostFingerprint').textContent=`Fingerprint ${h.fingerprint.slice(0,16)}…`;await refresh();}}catch(e){msg(e.message);}});
++'use strict';
++const $=id=>document.getElementById(id);
++const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
++function msg(t,ok=false){$('message').textContent=t;$('message').className='message'+(ok?' success':'');}
++async function refresh(){const pools=await window.customerLicenseApi.list();$('entitlementId').innerHTML=pools.map(p=>`<option value="${p.entitlementId}">${esc(p.customerName)} · ${esc(p.editionName)} · ${p.used}/${p.seats}</option>`).join('');$('pools').innerHTML=pools.length?pools.map(p=>`<article class="pool"><div><b>${esc(p.productDisplayName)}</b><span>${esc(p.customerName)} · ${esc(p.entitlementLabel)}</span></div><strong>${p.used}/${p.seats}</strong><small>${p.validFrom} → ${p.validUntil} · ${p.available} available</small></article>`).join(''):'<p class="help">No entitlements</p>';}
++(async()=>{const [h,i]=await Promise.all([window.customerLicenseApi.hostInfo(),window.customerLicenseApi.appInfo()]);$('hostId').textContent=h.hostId;$('hostFingerprint').textContent=`Fingerprint ${h.fingerprint.slice(0,16)}…`;$('version').textContent=`Customer License Tool v${i.suiteVersion} · Engine ${i.engineVersion}`;await refresh();})();
++$('copyEnrollment').addEventListener('click',async()=>{await window.customerLicenseApi.copyEnrollment();msg('Enrollment Code copied.',true);});
++$('importEntitlement').addEventListener('click',async()=>{try{const r=await window.customerLicenseApi.importEntitlement();if(!r.canceled){msg('Entitlement imported.',true);await refresh();}}catch(e){msg(e.message);}});
++$('issue').addEventListener('click',async()=>{try{const r=await window.customerLicenseApi.issue({entitlementId:$('entitlementId').value,machineId:$('machineId').value.trim(),computerLabel:$('computerLabel').value.trim()});if(!r.canceled){msg(`License generated · Seat ${r.seatNumber}/${r.seats} · ${r.productDisplayName}`,true);await refresh();}}catch(e){msg(e.message);}});
++$('exportRecovery').addEventListener('click',async()=>{try{const password=$('recoveryPassword').value;if(password.length<10)throw new Error('Recovery Password must be at least 10 characters.');const r=await window.customerLicenseApi.exportRecovery({password});if(!r.canceled)msg('Recovery backup saved.',true);}catch(e){msg(e.message);}});
++$('importRecovery').addEventListener('click',async()=>{try{const password=$('recoveryPassword').value;if(password.length<10)throw new Error('Enter the Recovery Password.');const r=await window.customerLicenseApi.importRecovery({password});if(!r.canceled){msg('License Host restored.',true);const h=await window.customerLicenseApi.hostInfo();$('hostId').textContent=h.hostId;$('hostFingerprint').textContent=`Fingerprint ${h.fingerprint.slice(0,16)}…`;await refresh();}}catch(e){msg(e.message);}});
+diff --git a/customer-license-tool/ui/index.html b/customer-license-tool/ui/index.html
+index 1706577..c7332b1 100644
+--- a/customer-license-tool/ui/index.html
++++ b/customer-license-tool/ui/index.html
+@@ -1,5 +1,8 @@
+-<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Universal CAD Customer License Tool</title><link rel="stylesheet" href="./style.css"></head><body><main class="shell"><header><div class="logo">C</div><div><span class="eyebrow">CUSTOMER SEAT MANAGER · OFFLINE</span><h1>Universal CAD Customer License Tool</h1><p>Suite 1.0.0 · Engine 0.26.0 · จัดสรร Seats ให้เครื่องภายในบริษัทโดยไม่ใช้อินเทอร์เน็ต</p></div></header>
+-<section class="notice"><strong>License Host เครื่องนี้</strong><span id="hostId">กำลังสร้าง Host Identity...</span></section><section class="card"><div class="title"><span>01</span><h2>Enrollment</h2></div><p class="help">ครั้งแรกส่ง Enrollment Code ให้ผู้ขายเพื่อออก Entitlement ให้บริษัทนี้</p><div class="key-row"><code id="hostFingerprint">—</code><button class="secondary" id="copyEnrollment">Copy Enrollment Code</button></div></section>
+-<section class="card"><div class="title"><span>02</span><h2>Recovery Backup</h2></div><p class="help">สำคัญ: ใช้สำหรับกู้ License Host หลังลง Windows ใหม่บนเครื่องเดิม โดยเก็บ delegated key และ Seat ledger แบบเข้ารหัส</p><div class="grid"><label class="wide">Recovery Password<input id="recoveryPassword" type="password" minlength="10" autocomplete="new-password" placeholder="อย่างน้อย 10 ตัวอักษร"></label></div><div class="key-row"><button class="secondary" id="exportRecovery">Export Recovery Backup</button><button class="secondary" id="importRecovery">Restore Recovery Backup</button></div></section>
+-<section class="card"><div class="title"><span>03</span><h2>Entitlements</h2></div><button class="primary" id="importEntitlement">Import .ucadent</button><div id="pools" class="pool-list"></div></section>
+-<section class="card"><div class="title"><span>04</span><h2>ออก License ให้เครื่อง</h2></div><div class="grid"><label>Entitlement<select id="entitlementId"></select></label><label>ชื่อเครื่อง<input id="computerLabel" placeholder="QC-PC-01"></label><label class="wide">Machine ID<input id="machineId" placeholder="UCAD-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX"></label></div><button class="primary" id="issue">สร้าง .ucadlic</button><p class="help">การออกให้ Machine ID เดิมซ้ำจะไม่กิน Seat เพิ่ม แต่ Seat ที่จัดสรรให้ Machine ID ใหม่แล้วจะไม่สามารถคืนเองได้ในโหมด Offline</p></section><div id="message" class="message hidden"></div><footer><span id="version">Customer License Tool</span><span>Offline · Host-bound · Seat limited</span></footer></main><script src="./app.js"></script></body></html>
++<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Universal CAD Customer License Tool</title><link rel="stylesheet" href="./style.css"></head><body><main class="shell">
++<header><div class="logo">C</div><div><span class="eyebrow">UNIVERSAL CAD</span><h1>Customer License Tool</h1><p>Suite 1.0.3 · Engine 0.26.0</p></div></header>
++<section class="notice"><strong>License Host</strong><span id="hostId">Loading…</span></section>
++<section class="card"><div class="title"><span>01</span><h2>Enrollment</h2></div><div class="key-row"><code id="hostFingerprint">—</code><button class="secondary" id="copyEnrollment">Copy Enrollment Code</button></div></section>
++<section class="card"><div class="title"><span>02</span><h2>Recovery</h2></div><div class="grid"><label class="wide">Recovery Password<input id="recoveryPassword" type="password" minlength="10" autocomplete="new-password"></label></div><div class="key-row"><button class="secondary" id="exportRecovery">Export Backup</button><button class="secondary" id="importRecovery">Restore Backup</button></div></section>
++<section class="card"><div class="title"><span>03</span><h2>Entitlements</h2></div><button class="primary" id="importEntitlement">Import Entitlement</button><div id="pools" class="pool-list"></div></section>
++<section class="card"><div class="title"><span>04</span><h2>Machine License</h2></div><div class="grid"><label>Entitlement<select id="entitlementId"></select></label><label>Computer Name<input id="computerLabel"></label><label class="wide">Machine ID<input id="machineId" placeholder="UCAD-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX"></label></div><button class="primary" id="issue">Generate License</button></section>
++<div id="message" class="message hidden"></div><footer><span id="version">Customer License Tool</span><span>Offline</span></footer></main><script src="./app.js"></script></body></html>
+diff --git a/desktop/activation.html b/desktop/activation.html
+index 485f093..24d86c4 100644
+--- a/desktop/activation.html
++++ b/desktop/activation.html
+@@ -1,31 +1,29 @@
+ <!doctype html>
+-<html lang="th">
++<html lang="en">
+ <head>
+-  <meta charset="utf-8" />
+-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+-  <title>Universal CAD Studio · License</title>
+-  <link rel="stylesheet" href="./activation.css" />
++  <meta charset="utf-8">
++  <meta name="viewport" content="width=device-width,initial-scale=1">
++  <title>Universal CAD Studio</title>
++  <link rel="stylesheet" href="./activation.css">
+ </head>
+ <body>
+   <main class="shell">
+     <section class="hero">
+       <div class="logo">UC</div>
+-      <div><span class="eyebrow">DESKTOP LICENSE</span><h1>Universal CAD Studio</h1><p>เปิดใช้งานโปรแกรมสำหรับคอมพิวเตอร์เครื่องนี้</p></div>
