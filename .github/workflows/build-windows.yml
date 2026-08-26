@@ -18,7 +18,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Rebuild Suite v1.0.4 from verified v1.0.3 base
+      - name: Rebuild Suite v1.0.5 from verified layers
         shell: pwsh
         run: |
           $base = "Universal-CAD-Suite-v1.0.0-public-source.zip"
@@ -28,21 +28,18 @@ jobs:
           New-Item -ItemType Directory -Force -Path src | Out-Null
           Expand-Archive -Path $base -DestinationPath src -Force
 
-          # Reconstruct the exact v1.0.3 product layer that already passed CI and Release.
           $parts = Get-ChildItem ".github/replacements/v1.0.3/chunks/part-*.txt" -File | Sort-Object Name
-          if ($parts.Count -ne 9) { throw "Suite v1.0.3 replacement bundle is incomplete. Expected 9 chunks, found $($parts.Count)." }
+          if ($parts.Count -ne 9) { throw "Suite v1.0.3 replacement bundle is incomplete." }
           $b64 = ($parts | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join ''
           $v103Zip = Join-Path $env:RUNNER_TEMP "v1.0.3-replacements.zip"
-          try { $bytes = [Convert]::FromBase64String($b64) } catch { throw "v1.0.3 replacement Base64 data is invalid." }
-          [System.IO.File]::WriteAllBytes($v103Zip, $bytes)
+          [System.IO.File]::WriteAllBytes($v103Zip, [Convert]::FromBase64String($b64))
           $v103Expected = "8b2c63f8aee6fab134d1a5b9f31bbfef658176c1d46f5cedf2e7d442e549233a"
           $v103Actual = (Get-FileHash $v103Zip -Algorithm SHA256).Hash.ToLower()
-          if ($v103Actual -ne $v103Expected) { throw "v1.0.3 replacement SHA-256 mismatch. Expected $v103Expected, got $v103Actual." }
+          if ($v103Actual -ne $v103Expected) { throw "v1.0.3 replacement SHA-256 mismatch." }
           Expand-Archive -Path $v103Zip -DestinationPath src -Force
 
-          # Apply v1.0.4 as plain UTF-8 replacement files. No patch/Base64 transport is used here.
-          $replacementRoot = ".github/replacements/v1.0.4/files"
-          $requiredReplacements = @(
+          $v104Root = ".github/replacements/v1.0.4/files"
+          $v104Files = @(
             "desktop/machine-id.cjs",
             "desktop/license-service.cjs",
             "customer-license-tool/host-identity.cjs",
@@ -50,56 +47,70 @@ jobs:
             "tests/test-v103-regression.cjs",
             "tests/test-v104-machine-id.cjs"
           )
-          foreach ($rel in $requiredReplacements) {
-            $source = Join-Path $replacementRoot $rel
+          foreach ($rel in $v104Files) {
+            $source = Join-Path $v104Root $rel
             $target = Join-Path "src" $rel
             if (-not (Test-Path $source)) { throw "Missing v1.0.4 replacement: $rel" }
             New-Item -ItemType Directory -Force -Path (Split-Path $target -Parent) | Out-Null
             Copy-Item $source $target -Force
           }
 
-          # Bump only Suite/Desktop wrapper metadata. The embedded PWA Engine remains v0.26.0.
-          $versionFiles = @(
-            "src/package.json",
-            "src/BUILD-WINDOWS.cmd",
-            "src/desktop/main.cjs",
-            "src/desktop/activation.html",
-            "src/desktop/activation.js",
-            "src/desktop/feature-gate.cjs",
-            "src/desktop/preload.cjs",
-            "src/customer-license-tool/ui/index.html",
-            "src/master-license-manager/ui/index.html",
-            "src/license-core/feature-catalog.cjs"
+          $v104VersionFiles = @(
+            "src/package.json","src/BUILD-WINDOWS.cmd","src/desktop/main.cjs","src/desktop/activation.html",
+            "src/desktop/activation.js","src/desktop/feature-gate.cjs","src/desktop/preload.cjs",
+            "src/customer-license-tool/ui/index.html","src/master-license-manager/ui/index.html","src/license-core/feature-catalog.cjs"
           )
-          foreach ($file in $versionFiles) {
-            if (-not (Test-Path $file)) { throw "Versioned wrapper file missing: $file" }
+          foreach ($file in $v104VersionFiles) {
             $text = [System.IO.File]::ReadAllText((Resolve-Path $file))
-            $updated = $text.Replace('1.0.3','1.0.4')
-            [System.IO.File]::WriteAllText((Resolve-Path $file), $updated, [System.Text.UTF8Encoding]::new($false))
+            [System.IO.File]::WriteAllText((Resolve-Path $file), $text.Replace('1.0.3','1.0.4'), [System.Text.UTF8Encoding]::new($false))
+          }
+
+          $v105Root = ".github/replacements/v1.0.5/files"
+          $v105Files = @(
+            "desktop/preload.cjs",
+            "desktop/main.cjs",
+            "desktop/activation.js",
+            "package.json",
+            "tests/test-v105-preload.cjs"
+          )
+          foreach ($rel in $v105Files) {
+            $source = Join-Path $v105Root $rel
+            $target = Join-Path "src" $rel
+            if (-not (Test-Path $source)) { throw "Missing v1.0.5 replacement: $rel" }
+            New-Item -ItemType Directory -Force -Path (Split-Path $target -Parent) | Out-Null
+            Copy-Item $source $target -Force
+          }
+
+          $v105VersionFiles = @(
+            "src/BUILD-WINDOWS.cmd","src/desktop/activation.html","src/desktop/feature-gate.cjs",
+            "src/customer-license-tool/main.cjs","src/customer-license-tool/ui/index.html",
+            "src/master-license-manager/ui/index.html","src/license-core/feature-catalog.cjs"
+          )
+          foreach ($file in $v105VersionFiles) {
+            $text = [System.IO.File]::ReadAllText((Resolve-Path $file))
+            [System.IO.File]::WriteAllText((Resolve-Path $file), $text.Replace('1.0.4','1.0.5'), [System.Text.UTF8Encoding]::new($false))
           }
 
           $suite = Get-Content "src/package.json" -Raw | ConvertFrom-Json
           $engine = Get-Content "src/app/package.json" -Raw | ConvertFrom-Json
           $version = [string]$suite.version
           $engineVersion = [string]$engine.version
-
-          if ($version -ne "1.0.4") { throw "Expected Suite 1.0.4 after reconstruction, got $version." }
+          if ($version -ne "1.0.5") { throw "Expected Suite 1.0.5, got $version." }
           if ($engineVersion -ne "0.26.0") { throw "Expected Engine 0.26.0, got $engineVersion." }
 
-          $machineSource = Get-Content "src/desktop/machine-id.cjs" -Raw
-          $serviceSource = Get-Content "src/desktop/license-service.cjs" -Raw
-          $hostSource = Get-Content "src/customer-license-tool/host-identity.cjs" -Raw
-          if ($machineSource -notmatch 'win-registry-v1\|GUID:') { throw "Registry-first Machine ID implementation is missing." }
-          if ($serviceSource -match 'this\.legacyMachineId\s*=\s*computeLegacyMachineId') { throw "Legacy WMI Machine ID is still computed eagerly at startup." }
-          if ($serviceSource -notmatch '_getCompatibilityMachineIds') { throw "Lazy legacy license compatibility is missing." }
-          if ($hostSource -notmatch 'previously created License Host identity is authoritative') { throw "Existing Customer License Host identity preservation is missing." }
-          if (-not ((Get-Content "src/master-license-manager/preload.cjs" -Raw) -match 'removeKey')) { throw "Remove Master Key bridge is missing." }
+          $preload = Get-Content "src/desktop/preload.cjs" -Raw
+          $main = Get-Content "src/desktop/main.cjs" -Raw
+          $activation = Get-Content "src/desktop/activation.js" -Raw
+          if ($preload -match "require\('./feature-gate\.cjs'\)") { throw "Sandboxed preload still requires local CommonJS." }
+          if ($preload -notmatch "license:machine-id") { throw "Direct Machine ID preload bridge missing." }
+          if ($main -notmatch "ipcMain\.handle\('license:machine-id'") { throw "Direct Machine ID IPC handler missing." }
+          if ($activation -notmatch "Promise\.allSettled") { throw "Activation isolation for Machine ID is missing." }
+          if (-not (Test-Path "src/tests/test-v105-preload.cjs")) { throw "v1.0.5 preload regression test missing." }
 
           "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "ENGINE_VERSION=$engineVersion" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "TAG=suite-v$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           Write-Host "Suite v$version / Engine v$engineVersion reconstructed successfully."
-          Write-Host "v1.0.3 verified base SHA256=$v103Actual"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -114,9 +125,9 @@ jobs:
         working-directory: src
         run: npm run test:full
 
-      - name: Run v1.0.4 Machine ID resilience test
+      - name: Run v1.0.5 preload runtime test
         working-directory: src
-        run: node tests/test-v104-machine-id.cjs
+        run: npm run test:preload
 
       - name: Build 3 Windows installers
         working-directory: src
@@ -129,12 +140,10 @@ jobs:
           $studio = "src/release/studio/Universal-CAD-Studio-Setup-$env:VERSION-x64.exe"
           $customerTool = "src/release/customer-license-tool/Universal-CAD-Customer-License-Tool-Setup-$env:VERSION-x64.exe"
           $masterManager = "src/release/master-license-manager/Universal-CAD-Master-License-Manager-Setup-$env:VERSION-x64.exe"
-
           foreach ($file in @($studio, $customerTool, $masterManager)) {
             if (-not (Test-Path $file)) { throw "Required installer was not produced: $file" }
             Copy-Item $file release-bundle/
           }
-
           Remove-Item "release-bundle/SHA256SUMS.txt" -ErrorAction SilentlyContinue
           Get-ChildItem "release-bundle/*.exe" | Sort-Object Name | ForEach-Object {
             $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
@@ -159,7 +168,6 @@ jobs:
           $tag = $env:TAG
           $title = "Universal CAD Suite v$env:VERSION"
           $notes = "Universal CAD Suite v$env:VERSION · Engine v$env:ENGINE_VERSION"
-
           gh release view $tag *> $null
           if ($LASTEXITCODE -ne 0) {
             gh release create $tag --target "$env:GITHUB_SHA" --title "$title" --notes "$notes"
@@ -168,18 +176,15 @@ jobs:
             gh release edit $tag --title "$title" --notes "$notes"
             if ($LASTEXITCODE -ne 0) { throw "Failed to update GitHub Release metadata." }
           }
-
           Start-Sleep -Seconds 3
-          $files = Get-ChildItem "release-bundle" -File | Sort-Object Name
-          foreach ($file in $files) {
+          foreach ($file in (Get-ChildItem "release-bundle" -File | Sort-Object Name)) {
             $uploaded = $false
             for ($attempt = 1; $attempt -le 4; $attempt++) {
-              Write-Host "Uploading $($file.Name), attempt $attempt/4"
               gh release upload $tag "$($file.FullName)" --clobber
               if ($LASTEXITCODE -eq 0) { $uploaded = $true; break }
               if ($attempt -lt 4) { Start-Sleep -Seconds (5 * $attempt) }
             }
-            if (-not $uploaded) { throw "Failed to upload release asset after retries: $($file.Name)" }
+            if (-not $uploaded) { throw "Failed to upload release asset: $($file.Name)" }
             Start-Sleep -Seconds 2
           }
           gh release view $tag --json url --jq .url
