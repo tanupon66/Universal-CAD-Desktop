@@ -1,0 +1,30 @@
+{
+  "name": "universal-cad-suite",
+  "version": "1.0.7",
+  "private": true,
+  "description": "Universal CAD Suite",
+  "main": "desktop/main.cjs",
+  "license": "UNLICENSED",
+  "scripts": {
+    "test:license": "node tests/test-license-core.cjs && node tests/test-offline-entitlement.cjs && node tests/test-v103-regression.cjs && node tests/test-v104-machine-id.cjs && node tests/test-v105-preload.cjs && node tests/test-v106-encrypted-license.cjs && node tests/test-v106-app-flow.cjs && node tests/test-v107-lite-edition.cjs",
+    "test:security": "node tests/test-public-package.cjs",
+    "test:pwa": "cd app && npm run test:all",
+    "test:pwa:production": "cd app && npm run typecheck && npm run lint && npm run test:all && npm run build && npm run verify:production",
+    "test": "npm run test:license && npm run test:security && npm run test:pwa",
+    "test:full": "npm run test:license && npm run test:security && npm run test:pwa:production",
+    "desktop": "electron desktop/main.cjs",
+    "customer-license-tool": "electron customer-license-tool/main.cjs",
+    "master-license-manager": "electron master-license-manager/main.cjs",
+    "build:studio": "electron-builder --config electron-builder.customer.yml --win nsis --x64",
+    "build:customer-tool": "electron-builder --config electron-builder.customer-tool.yml --win nsis --x64",
+    "build:master-manager": "electron-builder --config electron-builder.master-manager.yml --win nsis --x64",
+    "build:windows": "npm run build:studio && npm run build:customer-tool && npm run build:master-manager",
+    "test:machine-id": "node tests/test-v104-machine-id.cjs",
+    "test:preload": "node tests/test-v105-preload.cjs && node tests/test-v106-encrypted-license.cjs && node tests/test-v106-app-flow.cjs",
+    "test:lite": "node tests/test-v107-lite-edition.cjs"
+  },
+  "devDependencies": {
+    "electron": "^43.2.0",
+    "electron-builder": "^26.0.12"
+  }
+}
