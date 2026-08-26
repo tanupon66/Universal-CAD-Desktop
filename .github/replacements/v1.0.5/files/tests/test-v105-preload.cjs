@@ -1,0 +1,18 @@
+'use strict';
+const fs=require('node:fs');
+const path=require('node:path');
+const assert=require('node:assert/strict');
+const root=path.resolve(__dirname,'..');
+const preload=fs.readFileSync(path.join(root,'desktop/preload.cjs'),'utf8');
+const main=fs.readFileSync(path.join(root,'desktop/main.cjs'),'utf8');
+const activation=fs.readFileSync(path.join(root,'desktop/activation.js'),'utf8');
+assert(!preload.includes("require('./feature-gate.cjs')"),'Sandboxed preload must not require local CommonJS modules');
+const requires=[...preload.matchAll(/require\((['\"])(.*?)\1\)/g)].map(m=>m[2]);
+assert.deepEqual([...new Set(requires)],['electron'],'Sandboxed preload may require only electron');
+assert(preload.includes("exposeInMainWorld('desktopLicense'"),'desktopLicense bridge must be exposed');
+assert(preload.includes("machineId: () => ipcRenderer.invoke('license:machine-id')"),'Direct Machine ID bridge missing');
+assert(main.includes("ipcMain.handle('license:machine-id'"),'Direct Machine ID IPC missing');
+assert(activation.includes('Promise.allSettled'),'Activation must isolate Machine ID from license status failures');
+assert(activation.includes('Runtime bridge unavailable'),'Activation must diagnose preload failure explicitly');
+assert(!activation.includes("machineId.textContent='Unavailable'"),'Generic unavailable state must be removed');
+console.log('v1.0.5 preload/runtime tests: PASS');
