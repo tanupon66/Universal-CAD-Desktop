@@ -1,0 +1,1 @@
+v1.0.7 replacement bundle is stored as a binary Git blob and integrity-pinned by SHA-256 in the rebuild script.
