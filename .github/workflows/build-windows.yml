@@ -18,7 +18,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Rebuild Suite v1.0.3 from v1.0.0 baseline
+      - name: Rebuild Suite v1.0.4 from verified baselines
         shell: pwsh
         run: |
           $base = "Universal-CAD-Suite-v1.0.0-public-source.zip"
@@ -28,41 +28,51 @@ jobs:
           New-Item -ItemType Directory -Force -Path src | Out-Null
           Expand-Archive -Path $base -DestinationPath src -Force
 
+          # Reconstruct the already-validated v1.0.3 product layer first.
           $parts = Get-ChildItem ".github/replacements/v1.0.3/chunks/part-*.txt" -File | Sort-Object Name
           if ($parts.Count -ne 9) { throw "Suite v1.0.3 replacement bundle is incomplete. Expected 9 chunks, found $($parts.Count)." }
-
           $b64 = ($parts | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join ''
-          $replacementZip = Join-Path $env:RUNNER_TEMP "v1.0.3-replacements.zip"
-          try {
-            $bytes = [Convert]::FromBase64String($b64)
-          } catch {
-            throw "Replacement bundle Base64 data is invalid."
-          }
-          [System.IO.File]::WriteAllBytes($replacementZip, $bytes)
+          $v103Zip = Join-Path $env:RUNNER_TEMP "v1.0.3-replacements.zip"
+          try { $bytes = [Convert]::FromBase64String($b64) } catch { throw "v1.0.3 replacement Base64 data is invalid." }
+          [System.IO.File]::WriteAllBytes($v103Zip, $bytes)
+          $v103Expected = "8b2c63f8aee6fab134d1a5b9f31bbfef658176c1d46f5cedf2e7d442e549233a"
+          $v103Actual = (Get-FileHash $v103Zip -Algorithm SHA256).Hash.ToLower()
+          if ($v103Actual -ne $v103Expected) { throw "v1.0.3 replacement SHA-256 mismatch. Expected $v103Expected, got $v103Actual." }
+          Expand-Archive -Path $v103Zip -DestinationPath src -Force
 
-          $expectedHash = "8b2c63f8aee6fab134d1a5b9f31bbfef658176c1d46f5cedf2e7d442e549233a"
-          $actualHash = (Get-FileHash $replacementZip -Algorithm SHA256).Hash.ToLower()
-          if ($actualHash -ne $expectedHash) {
-            throw "Replacement bundle SHA-256 mismatch. Expected $expectedHash, got $actualHash."
-          }
-
-          Expand-Archive -Path $replacementZip -DestinationPath src -Force
+          # Apply the v1.0.4 Machine-ID/runtime overlay. This is a small delta over v1.0.3.
+          $overlayFile = ".github/replacements/v1.0.4/overlay.b64"
+          if (-not (Test-Path $overlayFile)) { throw "Suite v1.0.4 overlay was not found." }
+          $overlayText = [System.IO.File]::ReadAllText((Resolve-Path $overlayFile)).Trim()
+          $v104Zip = Join-Path $env:RUNNER_TEMP "v1.0.4-overlay.zip"
+          try { $overlayBytes = [Convert]::FromBase64String($overlayText) } catch { throw "v1.0.4 overlay Base64 data is invalid." }
+          [System.IO.File]::WriteAllBytes($v104Zip, $overlayBytes)
+          $v104Expected = "fec8dff72e97381f01b4d8f82a07c39a7513f7c95208f02267620c3832aeae06"
+          $v104Actual = (Get-FileHash $v104Zip -Algorithm SHA256).Hash.ToLower()
+          if ($v104Actual -ne $v104Expected) { throw "v1.0.4 overlay SHA-256 mismatch. Expected $v104Expected, got $v104Actual." }
+          Expand-Archive -Path $v104Zip -DestinationPath src -Force
 
           $suite = Get-Content "src/package.json" -Raw | ConvertFrom-Json
           $engine = Get-Content "src/app/package.json" -Raw | ConvertFrom-Json
           $version = [string]$suite.version
           $engineVersion = [string]$engine.version
 
-          if ($version -ne "1.0.3") { throw "Expected Suite 1.0.3 after reconstruction, got $version." }
+          if ($version -ne "1.0.4") { throw "Expected Suite 1.0.4 after reconstruction, got $version." }
           if ($engineVersion -ne "0.26.0") { throw "Expected Engine 0.26.0, got $engineVersion." }
-          if (-not (Test-Path "src/tests/test-v103-regression.cjs")) { throw "v1.0.3 regression test was not reconstructed." }
-          if (-not ((Get-Content "src/master-license-manager/preload.cjs" -Raw) -match 'removeKey')) { throw "Remove Master Key bridge is missing after reconstruction." }
+          if (-not (Test-Path "src/tests/test-v104-machine-id.cjs")) { throw "v1.0.4 Machine-ID regression test is missing." }
+          $machineSource = Get-Content "src/desktop/machine-id.cjs" -Raw
+          $serviceSource = Get-Content "src/desktop/license-service.cjs" -Raw
+          if ($machineSource -notmatch 'win-registry-v1\|GUID:') { throw "Registry-first Machine ID implementation is missing." }
+          if ($serviceSource -match 'this\.legacyMachineId\s*=\s*computeLegacyMachineId') { throw "Legacy WMI Machine ID is still computed eagerly at startup." }
+          if ($serviceSource -notmatch '_getCompatibilityMachineIds') { throw "Lazy legacy license compatibility is missing." }
+          if (-not ((Get-Content "src/master-license-manager/preload.cjs" -Raw) -match 'removeKey')) { throw "Remove Master Key bridge is missing." }
 
           "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "ENGINE_VERSION=$engineVersion" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "TAG=suite-v$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-          Write-Host "Suite v$version / Engine v$engineVersion reconstructed from v1.0.0 baseline."
-          Write-Host "Replacement bundle SHA256=$actualHash"
+          Write-Host "Suite v$version / Engine v$engineVersion reconstructed successfully."
+          Write-Host "v1.0.3 base SHA256=$v103Actual"
+          Write-Host "v1.0.4 overlay SHA256=$v104Actual"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
