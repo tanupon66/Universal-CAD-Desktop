@@ -25,7 +25,7 @@ $gate = $gate.Replace(
   'body.ucad-lite-mode .viewer{height:100%!important;min-height:480px!important}',
   'body.ucad-lite-mode .viewer,body.ucad-lite-mode .viewer.hidden,body.ucad-lite-mode .viewer[hidden]{display:block!important;visibility:visible!important;opacity:1!important;height:100%!important;min-height:480px!important}'
 )
-$gate = $gate.Replace('      body.ucad-lite-mode .modal-overlay{display:none!important}' + "`n", '')
+$gate = [regex]::Replace($gate, '(?m)^\s*body\.ucad-lite-mode \.modal-overlay\{display:none!important\}\r?\n?', '')
 [System.IO.File]::WriteAllText((Resolve-Path $gatePath), $gate, [System.Text.UTF8Encoding]::new($false))
 
 # Bump Suite wrapper metadata only. CAD Engine remains v0.26.0.
