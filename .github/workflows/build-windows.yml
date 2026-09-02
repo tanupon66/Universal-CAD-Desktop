@@ -18,10 +18,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Rebuild Suite v1.0.7 from verified layers
+      - name: Rebuild Suite v1.0.8 from verified layers
         shell: pwsh
         run: |
-          & "$PWD/.github/scripts/rebuild-suite-v1.0.7.ps1"
+          & "$PWD/.github/scripts/rebuild-suite-v1.0.8.ps1"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -36,10 +36,12 @@ jobs:
         working-directory: src
         run: npm run test:full
 
-      - name: Run Lite and encrypted-license tests explicitly
+      - name: Run Lite, license-management and encrypted-license tests explicitly
         working-directory: src
         shell: pwsh
         run: |
+          node tests/test-v108-lite-preview-license.cjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node tests/test-v107-lite-edition.cjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node tests/test-v106-encrypted-license.cjs
@@ -85,7 +87,7 @@ jobs:
         run: |
           $tag = $env:TAG
           $title = "Universal CAD Suite v$env:VERSION"
-          $notes = "Universal CAD Suite v$env:VERSION · Engine v$env:ENGINE_VERSION · Lite Edition + encrypted license files"
+          $notes = "Universal CAD Suite v$env:VERSION · Engine v$env:ENGINE_VERSION · Lite preview recovery + License Management + encrypted license files"
           gh release view $tag *> $null
           if ($LASTEXITCODE -ne 0) {
             gh release create $tag --target "$env:GITHUB_SHA" --title "$title" --notes "$notes"
