@@ -19,8 +19,11 @@ assert.match(appJs, /txtPlacementButton|txtPlacementGenerate/, 'TXT placement UI
 assert.match(placement, /Variation|variation/i, 'TXT Variation support is missing');
 assert.match(placement, /ComponentNumberId/, 'TXT ComponentNumberId export support is missing');
 assert.match(inspection, /packageName|PackageName/i, 'Inspection XML package-name support is missing');
+assert.match(inspection, /ComponentNumberCollection/, 'Engine 0.30.3 ComponentNumber XML schema is missing');
+assert.match(inspection, /LandNumberCollection/, 'Engine 0.30.3 LandNumber XML schema is missing');
+assert.match(placement, /packageName/, 'Engine 0.30.3 TXT packageName source is missing');
 const catalog = read('license-core/feature-catalog.cjs');
-for (const id of ['import.txtPlacement','placement.variationSource','placement.componentNumber','placement.packageName']) { assert.ok(catalog.includes("id: '" + id + "'"), 'Missing license option: ' + id); }
+for (const id of ['export.xml.engine0303','import.txtPlacement','placement.variationSource','placement.componentNumber','placement.packageName']) { assert.ok(catalog.includes("id: '" + id + "'"), 'Missing license option: ' + id); }
 const preload = read('desktop/preload.cjs');
 const main = read('desktop/main.cjs');
 assert.ok(preload.includes('app:relaunch'), 'Change License must expose app relaunch');
