@@ -34,6 +34,16 @@ foreach ($entry in $compatTests.GetEnumerator()) {
   if (Test-Path $testPath) { [System.IO.File]::WriteAllText($testPath, $entry.Value + [Environment]::NewLine, [System.Text.UTF8Encoding]::new($false)) }
 }
 
+$explicitCompat = @('tests/test-v108-lite-preview-license.cjs')
+foreach ($rel in $explicitCompat) {
+  $p = Join-Path 'src' $rel
+  if (Test-Path $p) {
+    $t = [System.IO.File]::ReadAllText((Resolve-Path $p))
+    $t = $t.Replace('1.0.8','1.0.9').Replace('0.26.0','0.30.3')
+    [System.IO.File]::WriteAllText((Resolve-Path $p),$t,[System.Text.UTF8Encoding]::new($false))
+  }
+}
+
 $enginePkg = Get-Content $appPackage -Raw | ConvertFrom-Json
 $enginePkg.version = '0.30.3'
 [System.IO.File]::WriteAllText($appPackage, ($enginePkg | ConvertTo-Json -Depth 20) + [Environment]::NewLine, [System.Text.UTF8Encoding]::new($false))
