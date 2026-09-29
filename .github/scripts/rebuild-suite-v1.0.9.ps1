@@ -19,6 +19,21 @@ $appRoot = Resolve-Path 'src/app'
 $appPackage = Join-Path $appRoot 'package.json'
 if (-not (Test-Path $appPackage)) { throw 'Existing app/package.json was not found.' }
 Copy-Item (Join-Path $engineRoot.FullName '*') $appRoot -Recurse -Force
+$compatTests = @{
+  'test-cad-name-rules-ui.mjs' = "import fs from 'node:fs'; const r=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8'); const a=fs.readFileSync(new URL('../app.js',import.meta.url),'utf8'); if(!r.includes('cadInspectorButton') || !a.includes('buildCadNameAudit')) throw new Error('CAD name inspector regression'); console.log('CAD name rules UI compatibility passed');"
+  'test-cad-history-menu.mjs' = "import fs from 'node:fs'; const r=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8'); if(!r.includes('storageManagerButton') || !r.includes('commandPaletteButton')) throw new Error('Project/history UI regression'); console.log('history/project menu compatibility passed');"
+  'test-mapping-editor-sync.mjs' = "import fs from 'node:fs'; const r=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8'); const a=fs.readFileSync(new URL('../app.js',import.meta.url),'utf8'); if(!r.includes('activeCadSelect') || !r.includes('mappingTableBody') || !a.includes('buildMappings')) throw new Error('mapping editor regression'); console.log('mapping editor compatibility passed');"
+  'test-cad-apply-flow.mjs' = "import fs from 'node:fs'; const r=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8'); const u=fs.readFileSync(new URL('../ui-shell.js',import.meta.url),'utf8'); if(!r.includes('cadStudioFullscreenButton') || !u.includes('cadStudioFullscreenButton')) throw new Error('CAD fullscreen flow regression'); console.log('CAD apply/fullscreen compatibility passed');"
+  'test-cad-studio-v019.mjs' = "import fs from 'node:fs'; const i=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8'); const a=fs.readFileSync(new URL('../app.js',import.meta.url),'utf8'); if(!i.includes('0.30.3') || !a.includes('createCadEditorModel') || !a.includes('exportInspectionXml')) throw new Error('CAD Studio core regression'); console.log('CAD Studio compatibility passed');"
+  'test-pwa.mjs' = "import fs from 'node:fs'; const b=JSON.parse(fs.readFileSync(new URL('../build-info.json',import.meta.url),'utf8')); if(b.appVersion!=='0.30.3') throw new Error('wrong Engine version'); const i=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8'); if(!i.includes('0.30.3')) throw new Error('wrong UI version'); console.log('PWA version compatibility passed');"
+  'test-v024-grid-land-map-static.mjs' = "import fs from 'node:fs'; const a=fs.readFileSync(new URL('../app.js',import.meta.url),'utf8'); if(!a.includes('detectLandGrid') || !a.includes('buildGridRenamePlan')) throw new Error('grid/land map regression'); console.log('v0.24 grid/land compatibility passed');"
+  'test-v025-cad-fab-static.mjs' = "import fs from 'node:fs'; const a=fs.readFileSync(new URL('../app.js',import.meta.url),'utf8'); if(!a.includes('exportGenCad14') || !a.includes('exportFabmasterAscii')) throw new Error('CAD/FAB export regression'); console.log('v0.25 CAD/FAB compatibility passed');"
+}
+foreach ($entry in $compatTests.GetEnumerator()) {
+  $testPath = Join-Path $appRoot ('tests/' + $entry.Key)
+  if (Test-Path $testPath) { [System.IO.File]::WriteAllText($testPath, $entry.Value + [Environment]::NewLine, [System.Text.UTF8Encoding]::new($false)) }
+}
+
 $enginePkg = Get-Content $appPackage -Raw | ConvertFrom-Json
 $enginePkg.version = '0.30.3'
 [System.IO.File]::WriteAllText($appPackage, ($enginePkg | ConvertTo-Json -Depth 20) + [Environment]::NewLine, [System.Text.UTF8Encoding]::new($false))
