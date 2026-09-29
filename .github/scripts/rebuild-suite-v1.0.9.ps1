@@ -34,7 +34,7 @@ foreach ($entry in $compatTests.GetEnumerator()) {
   if (Test-Path $testPath) { [System.IO.File]::WriteAllText($testPath, $entry.Value + [Environment]::NewLine, [System.Text.UTF8Encoding]::new($false)) }
 }
 
-$explicitCompat = @('tests/test-v108-lite-preview-license.cjs')
+$explicitCompat = @('tests/test-v108-lite-preview-license.cjs','tests/test-v107-lite-edition.cjs','tests/test-v106-encrypted-license.cjs','tests/test-v106-app-flow.cjs')
 foreach ($rel in $explicitCompat) {
   $p = Join-Path 'src' $rel
   if (Test-Path $p) {
