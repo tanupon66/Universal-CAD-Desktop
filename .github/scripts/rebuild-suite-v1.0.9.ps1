@@ -92,7 +92,19 @@ foreach ($cfg in $builderConfigs) {
   if (-not (Test-Path $cfg)) { throw "Missing installer config: $cfg" }
   $p = Resolve-Path $cfg
   $text = [System.IO.File]::ReadAllText($p)
-  if ($text -match '(?m)^nsis:\\s*,'src/BUILD-WINDOWS.cmd','src/customer-license-tool/main.cjs','src/customer-license-tool/ui/index.html','src/desktop/main.cjs','src/desktop/activation.js','src/desktop/activation.html','src/desktop/feature-gate.cjs','src/desktop/preload.cjs','src/master-license-manager/ui/index.html','src/master-license-manager/ui/app.js')
+  if ($text -match '(?m)^nsis:\s*$') {
+    if ($text -match '(?m)^\s+deleteAppDataOnUninstall:\s*') {
+      $text = [regex]::Replace($text, '(?m)^\s+deleteAppDataOnUninstall:\s*.*$', '  deleteAppDataOnUninstall: true')
+    } else {
+      $text = [regex]::Replace($text, '(?m)^nsis:\s*\r?\n', "nsis:" + [Environment]::NewLine + '  deleteAppDataOnUninstall: true' + [Environment]::NewLine, 1)
+    }
+  } else {
+    $text = $text.TrimEnd() + [Environment]::NewLine + 'nsis:' + [Environment]::NewLine + '  deleteAppDataOnUninstall: true' + [Environment]::NewLine
+  }
+  [System.IO.File]::WriteAllText($p, $text, [System.Text.UTF8Encoding]::new($false))
+}
+
+$versionFiles = @('src/package.json','src/BUILD-WINDOWS.cmd','src/customer-license-tool/main.cjs','src/customer-license-tool/ui/index.html','src/desktop/main.cjs','src/desktop/activation.js','src/desktop/activation.html','src/desktop/feature-gate.cjs','src/desktop/preload.cjs','src/master-license-manager/ui/index.html','src/master-license-manager/ui/app.js')
 foreach ($file in $versionFiles) {
   if (-not (Test-Path $file)) { throw "Missing Suite wrapper file: $file" }
   $resolved = Resolve-Path $file
