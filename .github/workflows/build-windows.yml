@@ -36,19 +36,6 @@ jobs:
         working-directory: src
         run: npm run test:full
 
-      - name: Run Lite, license-management and encrypted-license tests explicitly
-        working-directory: src
-        shell: pwsh
-        run: |
-          node tests/test-v108-lite-preview-license.cjs
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          node tests/test-v107-lite-edition.cjs
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          node tests/test-v106-encrypted-license.cjs
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          node tests/test-v106-app-flow.cjs
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
       - name: Run v1.0.9 Engine and license lifecycle regression
         working-directory: src
         run: node tests/test-v109-engine-license.cjs
