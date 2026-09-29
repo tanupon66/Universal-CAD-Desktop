@@ -18,10 +18,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Rebuild Suite v1.0.8 from verified layers
+      - name: Rebuild Suite v1.0.9 from verified layers
         shell: pwsh
         run: |
-          & "$PWD/.github/scripts/rebuild-suite-v1.0.8.ps1"
+          & "$PWD/.github/scripts/rebuild-suite-v1.0.9.ps1"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -48,6 +48,10 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node tests/test-v106-app-flow.cjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Run v1.0.9 Engine and license lifecycle regression
+        working-directory: src
+        run: node tests/test-v109-engine-license.cjs
 
       - name: Build 3 Windows installers
         working-directory: src
