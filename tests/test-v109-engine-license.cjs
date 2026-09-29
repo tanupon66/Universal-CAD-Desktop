@@ -14,7 +14,7 @@ const index = readEngine('index.html');
 const appJs = readEngine('app.js');
 const placement = readEngine('txt-placement-xml.js');
 const inspection = readEngine('inspection-xml-profile.js');
-assert.match(index, /0\\.30\\.3/, 'Engine UI must be 0.30.3');
+assert.ok(index.includes('0.30.3'), 'Engine UI must be 0.30.3');
 assert.match(appJs, /txtPlacementButton|txtPlacementGenerate/, 'TXT placement UI is missing');
 assert.match(placement, /Variation|variation/i, 'TXT Variation support is missing');
 assert.match(placement, /ComponentNumberId/, 'TXT ComponentNumberId export support is missing');
