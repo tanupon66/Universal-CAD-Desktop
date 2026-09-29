@@ -133,6 +133,10 @@ const FEATURE_CATALOG = Object.freeze([
   { id: 'import.txtPlacement', label: 'TXT Placement → XML', group: 'Engine 0.30.3', description: 'Convert placement TXT Location/Variation/X/Y data into Inspection XML.' },
   { id: 'placement.variationSource', label: 'TXT Variation Source', group: 'Engine 0.30.3', description: 'Use explicit TXT Variation as the source of truth.' },
   { id: 'placement.componentNumber', label: 'TXT Component Number', group: 'Engine 0.30.3', description: 'Export explicit TXT Variation as ComponentNumberId.' },
+  { id: 'export.xml.engine0303', label: 'Inspection XML 0.30.3 Schema', group: 'Engine 0.30.3', description: 'Use the Engine 0.30.3 Inspection XML component/package/land schema.' },
+  { id: 'import.txtPlacement', label: 'TXT Placement → XML', group: 'Engine 0.30.3', description: 'Convert placement TXT Location/Variation/X/Y data into Inspection XML.' },
+  { id: 'placement.variationSource', label: 'TXT Variation Source', group: 'Engine 0.30.3', description: 'Use explicit TXT Variation as the source of truth.' },
+  { id: 'placement.componentNumber', label: 'TXT Component Number', group: 'Engine 0.30.3', description: 'Export explicit TXT Variation as ComponentNumberId.' },
   { id: 'placement.packageName', label: 'TXT Package Name', group: 'Engine 0.30.3', description: 'Use explicit TXT Variation as the exported CAD package name.' },
 ]);
 
