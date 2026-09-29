@@ -76,7 +76,7 @@ $oldReload = "setTimeout(() => window.location.reload(), 120);"
 if ($preload.Contains($oldReload)) {
   $preload = $preload.Replace($oldReload, "await ipcRenderer.invoke('app:relaunch');")
 }
-if ($preload -notmatch "await ipcRenderer\\.invoke\\('app:relaunch'\\)") { throw 'Change License must relaunch after successful activation.' }
+if ($preload -notmatch "await ipcRenderer\.invoke\\('app:relaunch'\\)") { throw 'Change License must relaunch after successful activation.' }
 [System.IO.File]::WriteAllText($preloadPath, $preload, [System.Text.UTF8Encoding]::new($false))
 
 $mainPath = Resolve-Path 'src/desktop/main.cjs'
