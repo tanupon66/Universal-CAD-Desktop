@@ -64,7 +64,7 @@ if ($preload -notmatch "relaunch: \(\) => ipcRenderer\.invoke\('app:relaunch'\)"
 
 $mainPath = Resolve-Path 'src/desktop/main.cjs'
 $main = [System.IO.File]::ReadAllText($mainPath)
-if ($main -notmatch "ipcMain\.handle\('app:relaunch'") {
+if (-not $main.Contains("ipcMain.handle('app:relaunch'")) {
   $main += [Environment]::NewLine + "// v1.0.9: restart after License replacement so cached LicenseService state cannot survive." + [Environment]::NewLine + "ipcMain.handle('app:relaunch', () => { app.relaunch(); app.exit(0); return { ok: true }; });" + [Environment]::NewLine
 }
 [System.IO.File]::WriteAllText($mainPath, $main, [System.Text.UTF8Encoding]::new($false))
@@ -76,7 +76,7 @@ $oldReload = "setTimeout(() => window.location.reload(), 120);"
 if ($preload.Contains($oldReload)) {
   $preload = $preload.Replace($oldReload, "await ipcRenderer.invoke('app:relaunch');")
 }
-if ($preload -notmatch "await ipcRenderer\.invoke\\('app:relaunch'\\)") { throw 'Change License must relaunch after successful activation.' }
+if (-not $preload.Contains("await ipcRenderer.invoke('app:relaunch');")) { throw 'Change License must relaunch after successful activation.' }
 [System.IO.File]::WriteAllText($preloadPath, $preload, [System.Text.UTF8Encoding]::new($false))
 
 $mainPath = Resolve-Path 'src/desktop/main.cjs'
@@ -189,7 +189,7 @@ $preloadFinal = Get-Content 'src/desktop/preload.cjs' -Raw
 $mainFinal = Get-Content 'src/desktop/main.cjs' -Raw
 $catalogFinal = Get-Content 'src/license-core/feature-catalog.cjs' -Raw
 if ($preloadFinal -notmatch "app:relaunch" -or $preloadFinal -notmatch "await ipcRenderer\.invoke\('app:relaunch'\)") { throw 'Change License relaunch bridge is missing.' }
-if ($mainFinal -notmatch "ipcMain\.handle\('app:relaunch'") { throw 'Main-process relaunch handler is missing.' }
+if (-not $mainFinal.Contains("ipcMain.handle('app:relaunch'")) { throw 'Main-process relaunch handler is missing.' }
 foreach ($id in @('import.txtPlacement','placement.variationSource','placement.componentNumber','placement.packageName')) { if ($catalogFinal -notmatch [regex]::Escape("id: '$id'")) { throw "Missing Engine license option: $id" } }
 foreach ($cfg in $builderConfigs) { if ((Get-Content $cfg -Raw) -notmatch 'deleteAppDataOnUninstall:\s*true') { throw "Uninstall cleanup missing: $cfg" } }
 "VERSION=1.0.9" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
