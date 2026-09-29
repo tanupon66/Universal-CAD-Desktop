@@ -21,8 +21,8 @@ const catalog = read('license-core/feature-catalog.cjs');
 for (const id of ['import.txtPlacement','placement.variationSource','placement.componentNumber','placement.packageName']) { assert.ok(catalog.includes("id: '" + id + "'"), 'Missing license option: ' + id); }
 const preload = read('desktop/preload.cjs');
 const main = read('desktop/main.cjs');
-assert.match(preload, /app:relaunch/, 'Change License must expose app relaunch');
-assert.match(preload, /await ipcRenderer\\.invoke\\('app:relaunch'\\)/, 'Change License must relaunch after activation');
-assert.match(main, /ipcMain\\.handle\\('app:relaunch'/, 'Main process relaunch handler is missing');
-for (const rel of ['electron-builder.customer.yml','electron-builder.customer-tool.yml','electron-builder.master-manager.yml']) { assert.match(read(rel), /deleteAppDataOnUninstall:\\s*true/, rel + ' must delete appData on uninstall'); }
+assert.ok(preload.includes('app:relaunch'), 'Change License must expose app relaunch');
+assert.ok(preload.includes("await ipcRenderer.invoke('app:relaunch');"), 'Change License must relaunch after activation');
+assert.ok(main.includes("ipcMain.handle('app:relaunch'"), 'Main process relaunch handler is missing');
+for (const rel of ['electron-builder.customer.yml','electron-builder.customer-tool.yml','electron-builder.master-manager.yml']) { assert.ok(read(rel).includes('deleteAppDataOnUninstall: true'), rel + ' must delete appData on uninstall'); }
 console.log('v1.0.9 Engine 0.30.3 + license lifecycle regression: PASS');
