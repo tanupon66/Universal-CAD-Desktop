@@ -18,7 +18,6 @@ if ([string]$engineInfo.appVersion -ne '0.30.3') { throw "Engine build-info is $
 $appRoot = Resolve-Path 'src/app'
 $appPackage = Join-Path $appRoot 'package.json'
 if (-not (Test-Path $appPackage)) { throw 'Existing app/package.json was not found.' }
-Get-ChildItem $appRoot -Force | Where-Object { $_.Name -ne 'package.json' } | Remove-Item -Recurse -Force
 Copy-Item (Join-Path $engineRoot.FullName '*') $appRoot -Recurse -Force
 $enginePkg = Get-Content $appPackage -Raw | ConvertFrom-Json
 $enginePkg.version = '0.30.3'
