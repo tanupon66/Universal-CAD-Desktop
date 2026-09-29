@@ -81,7 +81,7 @@ if ($preload -notmatch "await ipcRenderer\\.invoke\\('app:relaunch'\\)") { throw
 
 $mainPath = Resolve-Path 'src/desktop/main.cjs'
 $main = [System.IO.File]::ReadAllText($mainPath)
-if ($main -notmatch "ipcMain\\.handle\\('app:relaunch'") {
+if ($main -notmatch "ipcMain\.handle\('app:relaunch'") {
   $main += [Environment]::NewLine + "// v1.0.9 lifecycle hardening: restart the process so LicenseService cache cannot retain the previous license." + [Environment]::NewLine + "ipcMain.handle('app:relaunch', () => { app.relaunch(); app.exit(0); return { ok: true }; });" + [Environment]::NewLine
 }
 [System.IO.File]::WriteAllText($mainPath, $main, [System.Text.UTF8Encoding]::new($false))
